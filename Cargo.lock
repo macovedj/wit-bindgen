@@ -1206,8 +1206,8 @@ name = "test-helpers"
 version = "0.0.0"
 dependencies = [
  "codegen-macro",
- "wasm-encoder 0.31.0",
- "wat",
+ "wasm-encoder 0.31.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
+ "wat 1.0.68 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wit-bindgen-core",
  "wit-component",
  "wit-parser 0.9.1",
@@ -1380,17 +1380,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-encoder"
+version = "0.31.0"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
+dependencies = [
+ "leb128",
+]
+
+[[package]]
 name = "wasm-metadata"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb85334398ff45293a2363baf031c959e19c4e1a95929aacefdceb95c1bc7f60"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
 dependencies = [
  "anyhow",
  "indexmap 2.0.0",
  "serde",
  "serde_json",
  "spdx",
- "wasm-encoder 0.31.0",
+ "wasm-encoder 0.31.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wasmparser 0.109.0",
 ]
 
@@ -1417,8 +1424,7 @@ dependencies = [
 [[package]]
 name = "wasmparser"
 version = "0.109.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bf9564f29de2890ee34406af52d2a92dec6ef044c8ddfc5add5db8dcfd36e6c"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
 dependencies = [
  "indexmap 2.0.0",
  "semver",
@@ -1468,7 +1474,7 @@ dependencies = [
  "wasmtime-jit",
  "wasmtime-runtime",
  "wasmtime-winch",
- "wat",
+ "wat 1.0.68 (registry+https://github.com/rust-lang/crates.io-index)",
  "windows-sys",
 ]
 
@@ -1720,7 +1726,18 @@ dependencies = [
  "leb128",
  "memchr",
  "unicode-width",
- "wasm-encoder 0.31.0",
+ "wasm-encoder 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "wast"
+version = "62.0.0"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
+dependencies = [
+ "leb128",
+ "memchr",
+ "unicode-width",
+ "wasm-encoder 0.31.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
 ]
 
 [[package]]
@@ -1729,7 +1746,15 @@ version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "295572bf24aa5b685a971a83ad3e8b6e684aaad8a9be24bc7bf59bed84cc1c08"
 dependencies = [
- "wast",
+ "wast 62.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "wat"
+version = "1.0.68"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
+dependencies = [
+ "wast 62.0.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
 ]
 
 [[package]]
@@ -1861,7 +1886,7 @@ dependencies = [
  "clap",
  "heck",
  "test-helpers",
- "wasm-encoder 0.31.0",
+ "wasm-encoder 0.31.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wasm-metadata",
  "wit-bindgen-core",
  "wit-component",
@@ -1875,9 +1900,9 @@ dependencies = [
  "clap",
  "heck",
  "test-artifacts",
- "wasm-encoder 0.31.0",
+ "wasm-encoder 0.31.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wasmtime",
- "wat",
+ "wat 1.0.68 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wit-bindgen-c",
  "wit-bindgen-core",
  "wit-bindgen-go",
@@ -1970,17 +1995,16 @@ dependencies = [
 [[package]]
 name = "wit-component"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b2ba1f13b1762d1995046790e18f283b38da19ff82505283d97a29b3914c8b5"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
 dependencies = [
  "anyhow",
  "bitflags 2.3.3",
  "indexmap 2.0.0",
  "log",
- "wasm-encoder 0.31.0",
+ "wasm-encoder 0.31.0 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wasm-metadata",
  "wasmparser 0.109.0",
- "wat",
+ "wat 1.0.68 (git+https://github.com/macovedj/wasm-tools?branch=bundle)",
  "wit-parser 0.9.1",
 ]
 
@@ -2003,8 +2027,7 @@ dependencies = [
 [[package]]
 name = "wit-parser"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93b5016f1dc64a1e7ffae43731381549b7846904e3ae9765fac464c4884caa94"
+source = "git+https://github.com/macovedj/wasm-tools?branch=bundle#8d4c230ab7628aefa2eab2da29f5320cb43eef8f"
 dependencies = [
  "anyhow",
  "id-arena",
