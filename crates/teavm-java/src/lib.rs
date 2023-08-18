@@ -1,3 +1,4 @@
+use anyhow::Result;
 use heck::{ToLowerCamelCase, ToShoutySnakeCase, ToUpperCamelCase};
 use std::{
     collections::{HashMap, HashSet},
@@ -6,9 +7,9 @@ use std::{
     ops::Deref,
 };
 use wit_bindgen_core::{
+    abi::{self, AbiVariant, Bindgen, Bitcast, Instruction, LiftLower, WasmType},
     uwrite, uwriteln,
     wit_parser::{
-        abi::{AbiVariant, Bindgen, Bitcast, Instruction, LiftLower, WasmType},
         Case, Docs, Enum, Flags, FlagsRepr, Function, FunctionKind, Int, InterfaceId, Record,
         Resolve, Result_, SizeAlign, Tuple, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, Union,
         Variant, WorldId, WorldKey,
@@ -132,7 +133,7 @@ impl WorldGenerator for TeaVmJava {
         key: &WorldKey,
         id: InterfaceId,
         _files: &mut Files,
-    ) {
+    ) -> Result<()> {
         let name = interface_name(resolve, key, Direction::Export);
         self.interface_names.insert(id, name.clone());
         let mut gen = self.interface(resolve, &name);
@@ -143,6 +144,7 @@ impl WorldGenerator for TeaVmJava {
         }
 
         gen.add_interface_fragment();
+        Ok(())
     }
 
     fn export_funcs(
@@ -151,7 +153,7 @@ impl WorldGenerator for TeaVmJava {
         world: WorldId,
         funcs: &[(&str, &Function)],
         _files: &mut Files,
-    ) {
+    ) -> Result<()> {
         let name = world_name(resolve, world);
         let mut gen = self.interface(resolve, &name);
 
@@ -160,9 +162,10 @@ impl WorldGenerator for TeaVmJava {
         }
 
         gen.add_world_fragment();
+        Ok(())
     }
 
-    fn export_types(
+    fn import_types(
         &mut self,
         resolve: &Resolve,
         world: WorldId,
@@ -493,7 +496,8 @@ impl InterfaceGenerator<'_> {
                 .collect(),
         );
 
-        bindgen.gen.resolve.call(
+        abi::call(
+            bindgen.gen.resolve,
             AbiVariant::GuestImport,
             LiftLower::LowerArgsLiftResults,
             func,
@@ -561,7 +565,8 @@ impl InterfaceGenerator<'_> {
             (0..sig.params.len()).map(|i| format!("p{i}")).collect(),
         );
 
-        bindgen.gen.resolve.call(
+        abi::call(
+            bindgen.gen.resolve,
             AbiVariant::GuestExport,
             LiftLower::LiftArgsLowerResults,
             func,
@@ -601,7 +606,7 @@ impl InterfaceGenerator<'_> {
             "#
         );
 
-        if self.resolve.guest_export_needs_post_return(func) {
+        if abi::guest_export_needs_post_return(self.resolve, func) {
             let params = sig
                 .results
                 .iter()
@@ -619,7 +624,7 @@ impl InterfaceGenerator<'_> {
                 (0..sig.results.len()).map(|i| format!("p{i}")).collect(),
             );
 
-            bindgen.gen.resolve.post_return(func, &mut bindgen);
+            abi::post_return(bindgen.gen.resolve, func, &mut bindgen);
 
             let src = bindgen.src;
 
@@ -882,6 +887,11 @@ impl<'a> wit_bindgen_core::InterfaceGenerator<'a> for InterfaceGenerator<'a> {
             }}
             "
         );
+    }
+
+    fn type_resource(&mut self, id: TypeId, name: &str, docs: &Docs) {
+        _ = (id, name, docs);
+        todo!()
     }
 
     fn type_flags(&mut self, _id: TypeId, name: &str, flags: &Flags, docs: &Docs) {
@@ -1388,6 +1398,8 @@ impl Bindgen for FunctionBindgen<'_, '_> {
                     ));
                 }
             },
+
+            Instruction::HandleLower { .. } | Instruction::HandleLift { .. } => todo!(),
 
             Instruction::RecordLower { record, .. } => {
                 let op = &operands[0];
@@ -2078,10 +2090,6 @@ impl Bindgen for FunctionBindgen<'_, '_> {
                     self.src,
                     "Memory.free(Address.fromInt({address}), ({length}) * {size}, {align});"
                 );
-            }
-
-            Instruction::HandleLift { .. } | Instruction::HandleLower { .. } => {
-                todo!("implement resources")
             }
         }
     }
