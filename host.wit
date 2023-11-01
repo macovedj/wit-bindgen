@@ -1,0 +1,6 @@
+// wit/host.wit
+package example:foo
+
+world foo {
+  export concat: func(left: string, right: string) -> string
+}

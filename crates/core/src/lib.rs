@@ -265,9 +265,9 @@ impl Files {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Source {
-    s: String,
+    pub s: String,
     indent: usize,
 }
 

@@ -1,0 +1,27 @@
+{
+  "name": "wit-bindgen",
+  "version": "1.0.0",
+  "description": "<div align=\"center\">   <h1><code>wit-bindgen</code></h1>",
+  "main": "index.js",
+  "type": "module",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/macovedj/wit-bindgen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/macovedj/wit-bindgen/issues"
+  },
+  "homepage": "https://github.com/macovedj/wit-bindgen#readme",
+  "dependencies": {
+    "@bytecodealliance/preview2-shim": "^0.0.20"
+  }
+}
