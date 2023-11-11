@@ -17,6 +17,7 @@ typedef struct {
 
 // Exported Functions from `foo`
 void foo_concat(foo_string_t *left, foo_string_t *right, foo_string_t *ret);
+uint8_t foo_add(uint8_t left, uint8_t right);
 
 // Helper Functions
 

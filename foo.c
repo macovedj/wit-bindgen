@@ -55,6 +55,12 @@ int32_t __wasm_export_foo_concat(int32_t arg, int32_t arg0, int32_t arg1, int32_
   return ptr;
 }
 
+__attribute__((__export_name__("add")))
+int32_t __wasm_export_foo_add(int32_t arg, int32_t arg0) {
+  uint8_t ret = foo_add((uint8_t) (arg), (uint8_t) (arg0));
+  return (int32_t) (ret);
+}
+
 extern void __component_type_object_force_link_foo(void);
 void __component_type_object_force_link_foo_public_use_in_this_compilation_unit(void) {
   __component_type_object_force_link_foo();

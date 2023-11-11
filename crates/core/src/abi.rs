@@ -674,6 +674,7 @@ pub fn guest_export_needs_post_return(resolve: &Resolve, func: &Function) -> boo
 }
 
 fn needs_post_return(resolve: &Resolve, ty: &Type) -> bool {
+    dbg!(&ty);
     match ty {
         Type::String => true,
         Type::Id(id) => match &resolve.types[*id].kind {

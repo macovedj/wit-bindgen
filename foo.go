@@ -13,6 +13,7 @@ func SetFoo(i Foo) {
 }
 type Foo interface {
   Concat(left string, right string) string 
+  Add(left uint8, right uint8) uint8 
 }
 //export foo_concat
 func FooConcat(left *C.foo_string_t, right *C.foo_string_t, ret *C.foo_string_t) {
@@ -29,5 +30,16 @@ func FooConcat(left *C.foo_string_t, right *C.foo_string_t, ret *C.foo_string_t)
   lower_result.ptr = (*uint8)(unsafe.Pointer(C.CString(result)))
   lower_result.len = C.size_t(len(result))
   *ret = lower_result
+  
+}
+//export foo_add
+func FooAdd(left C.uint8_t, right C.uint8_t) C.uint8_t {
+  var lift_left uint8
+  lift_left = uint8(left)
+  var lift_right uint8
+  lift_right = uint8(right)
+  result := foo.Add(lift_left, lift_right)
+  lower_result := C.uint8_t(result)
+  return lower_result
   
 }

@@ -27,6 +27,11 @@ const { blockingFlush,
   read,
   write } = streams;
 
+function clampGuest(i, min, max) {
+  if (i < min || i > max) throw new TypeError(`must be between ${min} and ${max}`);
+  return i;
+}
+
 let dv = new DataView(new ArrayBuffer());
 const dataView = mem => dv.buffer === mem.buffer ? dv : dv = new DataView(mem.buffer);
 
@@ -53,6 +58,12 @@ const toUint64 = val => BigInt.asUintN(64, val);
 
 function toUint32(val) {
   return val >>> 0;
+}
+
+function toUint8(val) {
+  val >>>= 0;
+  val %= 2 ** 8;
+  return val;
 }
 
 const utf8Decoder = new TextDecoder();
@@ -1527,6 +1538,11 @@ function concat(arg0, arg1) {
   return result2;
 }
 
+function add(arg0, arg1) {
+  const ret = exports1.__export_add(toUint8(arg0), toUint8(arg1));
+  return clampGuest(ret, 0, 255);
+}
+
 const $init = (async() => {
   const module0 = fetchCompile(new URL('./final.core.wasm', import.meta.url));
   const module1 = fetchCompile(new URL('./final.core2.wasm', import.meta.url));
@@ -1634,4 +1650,4 @@ const $init = (async() => {
 
 await $init;
 
-export { concat }
+export { add, concat }

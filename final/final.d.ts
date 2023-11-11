@@ -11,3 +11,4 @@ import { WasiFilesystemPreopens } from './interfaces/wasi-filesystem-preopens';
 import { WasiFilesystemTypes } from './interfaces/wasi-filesystem-types';
 import { WasiIoStreams } from './interfaces/wasi-io-streams';
 export function concat(left: string, right: string): string;
+export function add(left: number, right: number): number;

@@ -97,14 +97,17 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
         match amt {
             0 => {}
             1 => {
+                dbg!("LET RESULT 1");
                 let tmp = self.tmp();
                 let res = format!("result{}", tmp);
                 self.push_str("const ");
                 self.push_str(&res);
+                dbg!(&res);
                 results.push(res);
                 self.push_str(" = ");
             }
             n => {
+                dbg!("LET RESULT N");
                 let tmp = self.tmp();
                 self.push_str("let (");
                 for i in 0..n {
@@ -298,9 +301,10 @@ impl Bindgen for FunctionBindgen<'_, '_> {
         results: &mut Vec<String>,
     ) {
         let mut top_as = |cvt: &str| {
-            let mut s = operands.pop().unwrap();
-            s.push_str(" as ");
-            s.push_str(cvt);
+            // let mut s = operands.pop().unwrap();
+            // s.push_str(" as ");
+            // s.push_str(cvt);
+            let s = format!("@intCast({cvt})");
             results.push(s);
         };
 
@@ -334,10 +338,11 @@ impl Bindgen for FunctionBindgen<'_, '_> {
             | Instruction::I32FromU32
             | Instruction::I32FromS32 => {
                 let s = operands.pop().unwrap();
-                results.push(format!(
-                    "{rt}::as_i32({s})",
-                    rt = self.gen.gen.runtime_path()
-                ));
+                // results.push(format!(
+                //     "{rt}::as_i32({s})",
+                //     rt = self.gen.gen.runtime_path()
+                // ));
+                results.push(s);
             }
 
             Instruction::F32FromFloat32 => {
@@ -361,7 +366,7 @@ impl Bindgen for FunctionBindgen<'_, '_> {
                 results.push(operands.pop().unwrap());
             }
             Instruction::S8FromI32 => top_as("i8"),
-            Instruction::U8FromI32 => top_as("u8"),
+            Instruction::U8FromI32 => top_as(&operands[0]),
             Instruction::S16FromI32 => top_as("i16"),
             Instruction::U16FromI32 => top_as("u16"),
             Instruction::U32FromI32 => top_as("u32"),
@@ -668,6 +673,7 @@ impl Bindgen for FunctionBindgen<'_, '_> {
             }
 
             Instruction::StringLower { realloc } => {
+                dbg!("STRING LOWER OPERANDS", &operands);
                 let tmp = self.tmp();
                 // let val = format!("vec{}", tmp);
                 let return_ptr = format!("ptr{}", tmp - 1);
@@ -694,6 +700,7 @@ impl Bindgen for FunctionBindgen<'_, '_> {
                 // }
                 results.push(format!("@intFromPtr({}.ptr)", &result_ptr));
                 results.push(format!("{}.len", &result_ptr));
+                // results.push("const ret: i32 = @intCast(@intFromPtr({return_ptr}))".to_string());
             }
 
             Instruction::StringLift => {
@@ -850,14 +857,16 @@ impl Bindgen for FunctionBindgen<'_, '_> {
 
             Instruction::Return { amt, .. } => {
                 self.emit_cleanup();
-
+                dbg!("RETURN OPERANDS", &operands);
                 match amt {
                     0 => {}
                     1 => {
                         self.push_str(&format!(
-                            "const num: i32 = @intCast(@intFromPtr(ptr3));
+                            "const num: i32 = @intCast(@intFromPtr({}));
                           return num;
-                          "
+                        }}
+                          ",
+                            operands[0]
                         ));
                         // self.push_str(&operands[0]);
                         // self.push_str("\n");

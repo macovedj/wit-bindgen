@@ -58,15 +58,15 @@ pub struct Opts {}
 
 impl Opts {
     pub fn build(&self) -> Box<dyn WorldGenerator> {
-        Box::new(TinyGo {
+        Box::new(Zig {
             _opts: self.clone(),
-            ..TinyGo::default()
+            ..Zig::default()
         })
     }
 }
 
 #[derive(Default)]
-pub struct TinyGo {
+pub struct Zig {
     _opts: Opts,
     src: Source,
     world: String,
@@ -86,7 +86,7 @@ pub struct TinyGo {
     interfaces_with_types_printed: HashSet<InterfaceId>,
 }
 
-impl TinyGo {
+impl Zig {
     fn interface<'a>(
         &'a mut self,
         resolve: &'a Resolve,
@@ -114,7 +114,7 @@ impl TinyGo {
     }
 }
 
-impl WorldGenerator for TinyGo {
+impl WorldGenerator for Zig {
     fn preprocess(&mut self, resolve: &Resolve, world: WorldId) {
         let name = &resolve.worlds[world].name;
         self.world = name.to_string();
@@ -255,22 +255,22 @@ impl WorldGenerator for TinyGo {
         self.src.push_str("\n\n");
 
         // import C
-        self.src.push_str("// #include \"");
-        self.src.push_str(self.world.to_snake_case().as_str());
-        self.src.push_str(".h\"\n");
-        self.src.push_str("import \"C\"\n\n");
+        // self.src.push_str("// #include \"");
+        // self.src.push_str(self.world.to_snake_case().as_str());
+        // self.src.push_str(".h\"\n");
+        // self.src.push_str("import \"C\"\n\n");
 
-        if self.needs_import_unsafe {
-            self.src.push_str("import \"unsafe\"\n\n");
-        }
-        if self.needs_fmt_import {
-            self.src.push_str("import \"fmt\"\n\n");
-        }
+        // if self.needs_import_unsafe {
+        //     self.src.push_str("import \"unsafe\"\n\n");
+        // }
+        // if self.needs_fmt_import {
+        //     self.src.push_str("import \"fmt\"\n\n");
+        // }
         self.src.push_str(&src);
 
         let world = &resolve.worlds[id];
         files.push(
-            &format!("{}.go", world.name.to_kebab_case()),
+            &format!("{}.zig", world.name.to_kebab_case()),
             self.src.as_bytes(),
         );
         if self.needs_result_option {
@@ -402,7 +402,7 @@ impl WorldGenerator for TinyGo {
 
 struct InterfaceGenerator<'a> {
     src: Source,
-    gen: &'a mut TinyGo,
+    gen: &'a mut Zig,
     resolve: &'a Resolve,
     interface: Option<InterfaceId>,
     name: &'a Option<&'a WorldKey>,
@@ -1247,7 +1247,6 @@ impl InterfaceGenerator<'_> {
         let lower_src = func_bindgen.lower_src.to_string();
 
         let interface_method_decl = self.get_func_signature_no_interface(resolve, func);
-        dbg!(&interface_method_decl);
         let export_func = {
             let mut src = String::new();
             // header
@@ -1340,16 +1339,16 @@ impl InterfaceGenerator<'_> {
             let interface_var_name = &self.get_interface_var_name();
             let interface_name = &self.get_package_name();
 
+            // self.src
+            //     .push_str(format!("var {interface_var_name} {interface_name} = nil\n").as_str());
+            // self.src.push_str(
+            //     format!(
+            //         "func Set{interface_name}(i {interface_name}) {{\n    {interface_var_name} = i\n}}\n"
+            //     )
+            //     .as_str(),
+            // );
             self.src
-                .push_str(format!("var {interface_var_name} {interface_name} = nil\n").as_str());
-            self.src.push_str(
-                format!(
-                    "func Set{interface_name}(i {interface_name}) {{\n    {interface_var_name} = i\n}}\n"
-                )
-                .as_str(),
-            );
-            self.src
-                .push_str(format!("type {interface_name} interface {{\n").as_str());
+                .push_str(format!("const {interface_name} = struct {{\n").as_str());
             for (interface_func_declaration, _) in &self.export_funcs {
                 self.src
                     .push_str(format!("{interface_func_declaration}\n").as_str());

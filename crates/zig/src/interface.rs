@@ -89,7 +89,6 @@ impl InterfaceGenerator<'_> {
             // First generate the exported function which performs lift/lower
             // operations and delegates to a trait (that doesn't exist just yet).
             self.generate_guest_export(func);
-            self.src.push_str("}\n\n");
 
             // Next generate a trait signature for this method and insert it
             // into `traits`. Note that `traits` will have a trait-per-resource.
@@ -126,13 +125,10 @@ impl InterfaceGenerator<'_> {
                 sig.self_arg = Some("&self".into());
                 sig.self_is_first_param = true;
             }
-            dbg!(&self.src);
             self.print_signature(func, TypeMode::Owned, &sig);
             self.src.push_str("\n\n");
             // dbg!(&prev);
-            dbg!(&self.src);
             let trait_method = mem::replace(&mut self.src, prev);
-            dbg!(&trait_method);
             methods.push(trait_method);
         }
 
@@ -142,11 +138,7 @@ impl InterfaceGenerator<'_> {
         // there's only one implementation of this trait and it must be
         // pre-configured.
         for (export_key, (trait_name, local_impl_name, methods)) in traits {
-            dbg!(&export_key);
-            dbg!(&trait_name);
-            dbg!(&local_impl_name);
             let impl_name = self.gen.lookup_export(&export_key)?;
-            dbg!(&impl_name);
             let path_to_root = self.path_to_root();
             // uwriteln!(
             //     self.src,
@@ -156,7 +148,6 @@ impl InterfaceGenerator<'_> {
             // uwriteln!(self.src, "pub trait {trait_name} {{");
             uwriteln!(self.src, "const {trait_name} = struct {{");
             for method in methods {
-                dbg!(&method);
                 self.src.push_str(&method);
             }
             uwriteln!(self.src, "}};");
@@ -346,11 +337,7 @@ impl InterfaceGenerator<'_> {
         let mut params = Vec::new();
         for (i, param) in sig.params.iter().enumerate() {
             let name = format!("arg{}", i);
-            if i == sig.params.len() - 1 {
-                uwrite!(self.src, "{name}: {}", wasm_type(*param));
-            } else {
-                uwrite!(self.src, "{name}: {},", wasm_type(*param));
-            }
+            uwrite!(self.src, "{name}: {}, ", wasm_type(*param));
             params.push(name);
         }
         self.src.push_str(")");
@@ -383,7 +370,6 @@ impl InterfaceGenerator<'_> {
         } = f;
         assert!(!needs_cleanup_list);
         self.src.push_str(&String::from(src));
-        self.src.push_str("}\n");
 
         if abi::guest_export_needs_post_return(self.resolve, func) {
             let export_prefix = self.gen.opts.export_prefix.as_deref().unwrap_or("");
@@ -411,8 +397,8 @@ impl InterfaceGenerator<'_> {
                 ..
             } = f;
             assert!(!needs_cleanup_list);
-            // dbg!(&src);
             self.src.push_str(&String::from(src));
+            self.src.push_str("}\n");
         }
     }
 

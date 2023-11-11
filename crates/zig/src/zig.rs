@@ -1,8 +1,7 @@
-use heck::{ToKebabCase, ToSnakeCase, ToUpperCamelCase};
+use heck::{ToKebabCase, ToSnakeCase};
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::fmt;
 use std::str::FromStr;
-use std::{fmt, mem};
-use wit_bindgen_core::abi::{self, AbiVariant, LiftLower};
 use wit_bindgen_core::{wit_parser::*, Source, Types, WorldGenerator};
 mod go;
 mod rust;
@@ -258,31 +257,11 @@ impl ZigWasm {
         ZigWasm::default()
     }
 
-    fn get_zig_ty(&self, ty: &Type) -> String {
-        match ty {
-            Type::Bool => "bool".into(),
-            Type::U8 => "u8".into(),
-            Type::U16 => "u16".into(),
-            Type::U32 => "u32".into(),
-            Type::U64 => "u64".into(),
-            Type::S8 => "s8".into(),
-            Type::S16 => "s16".into(),
-            Type::S32 => "s32".into(),
-            Type::S64 => "s64".into(),
-            Type::Float32 => todo!(),
-            Type::Float64 => todo!(),
-            Type::Char => todo!(),
-            Type::String => "[]u8".into(),
-            Type::Id(_) => todo!(),
-        }
-    }
-
     fn interface<'a>(
         &'a mut self,
-        // identifier: Identifier<'a>,
-        // wasm_import_module: Option<&'a str>,
+        identifier: Identifier<'a>,
+        wasm_import_module: Option<&'a str>,
         resolve: &'a Resolve,
-        name: &'a Option<&'a WorldKey>,
         in_import: bool,
     ) -> InterfaceGenerator<'a> {
         InterfaceGenerator {
@@ -290,8 +269,7 @@ impl ZigWasm {
             gen: self,
             resolve,
             interface: None,
-            // name: identifier,
-            name,
+            name: identifier,
             public_anonymous_types: BTreeSet::new(),
             in_import,
             export_funcs: Vec::new(),
@@ -305,7 +283,6 @@ impl WorldGenerator for ZigWasm {
         self.world = name.to_string();
         // self.sizes.fill(resolve);
     }
-
     fn import_interface(
         &mut self,
         resolve: &Resolve,
@@ -323,8 +300,7 @@ impl WorldGenerator for ZigWasm {
         iface: InterfaceId,
         files: &mut wit_bindgen_core::Files,
     ) -> anyhow::Result<()> {
-        dbg!("EXPORTING INTERFACE");
-        Ok(())
+        todo!()
     }
 
     fn import_funcs(
@@ -345,19 +321,14 @@ impl WorldGenerator for ZigWasm {
         files: &mut wit_bindgen_core::Files,
     ) -> anyhow::Result<()> {
         dbg!("export funcs");
-        // self.src.push_str(
-        //     "const Guest = struct {
-        //   ",
-        // );
-        let name = &resolve.worlds[world].name;
-        let mut gen = self.interface(resolve, &None, false);
-        // let mut gen = self.interface(Identifier::World(world), None, resolve, false);
+        self.src.push_str(
+            "const Guest = struct {
+          ",
+        );
+        let mut gen = self.interface(Identifier::World(world), None, resolve, false);
         for (name, func) in funcs.iter() {
             gen.export(resolve, func);
         }
-        gen.finish();
-        let src = mem::take(&mut gen.src);
-        self.src.push_str(&src);
         Ok(())
     }
 
@@ -377,9 +348,6 @@ impl WorldGenerator for ZigWasm {
         // self.src.push_str("package ");
         // self.src.push_str(&snake);
         // self.src.push_str("\n\n");
-        let src = mem::take(&mut self.src);
-        dbg!(&src);
-        dbg!("BIG FINISH");
         let world = &resolve.worlds[id];
         self.src.push_str(
             "const std = @import(\"std\");
@@ -401,64 +369,8 @@ impl WorldGenerator for ZigWasm {
                 return null;
             };
             return buf.ptr;
-        }
-
-        ",
+        }",
         );
-        self.src.push_str(&src);
-        // dbg!(&world.exports);
-        let mut export_names = Vec::new();
-        let mut post_return_names = Vec::new();
-        self.src.push_str("const Guest = struct {\n");
-        for (_, world_item) in &world.exports {
-            match world_item {
-                WorldItem::Interface(_) => todo!(),
-                WorldItem::Function(func) => {
-                    dbg!(&func);
-                    self.src.push_str(&format!("fn {}(", &func.name));
-                    export_names.push(&func.name);
-                    if abi::guest_export_needs_post_return(resolve, func) {
-                        post_return_names.push(&func.name);
-                    };
-                    for (name, ty) in &func.params {
-                        self.src
-                            .push_str(&format!("{name}: {}, ", self.get_zig_ty(ty)));
-                    }
-                    match func.results.len() {
-                        0 => {}
-                        1 => {
-                            let res = func.results.iter_types().last().unwrap();
-                            self.src
-                                .push_str(&format!(") {} {{}}\n", self.get_zig_ty(res)));
-                        }
-                        _ => {}
-                    }
-                }
-                WorldItem::Type(_) => todo!(),
-            }
-        }
-        self.src.push_str(
-            "};
-
-            comptime {
-        ",
-        );
-        for name in export_names {
-            self.src.push_str(&format!(
-                "@export(__export_{name}, .{{ .name = \"{name}\" }});\n"
-            ));
-        }
-        for name in post_return_names {
-            self.src.push_str(&format!(
-                "@export(__post_return_{name}, . {{ .name = \"cabi_post_{name}\" }});\n"
-            ));
-        }
-        self.src.push_str(
-            "}
-        
-        pub fn main() void {}",
-        );
-        // for exp in self.export_funcs(resolve, world, funcs, files)
         files.push(
             &format!("{}.zig", world.name.to_kebab_case()),
             self.src.as_bytes(),
@@ -471,8 +383,7 @@ struct InterfaceGenerator<'a> {
     gen: &'a mut ZigWasm,
     resolve: &'a Resolve,
     interface: Option<InterfaceId>,
-    name: &'a Option<&'a WorldKey>,
-    // name: Identifier<'a>,
+    name: Identifier<'a>,
     public_anonymous_types: BTreeSet<TypeId>,
     in_import: bool,
     export_funcs: Vec<(String, String)>,
@@ -492,135 +403,15 @@ impl InterfaceGenerator<'_> {
             }
             _ => {}
         }
-        let args = func_bindgen.args;
-        let lift_src = func_bindgen.lift_src.to_string();
-        let lower_src = func_bindgen.lower_src.to_string();
-        let mut interface_decl = format!("export fn __export_{}(", func.name);
-        for arg in args.clone() {
-            interface_decl.push_str(&format!("{}: {}, ", arg.0, arg.1));
-        }
-        interface_decl.push_str(") ");
-        let mut src = String::new();
-        let result = func.results.iter_types().last().unwrap();
-        src.push_str(&self.get_zig_binding_ty(result));
-        // dbg!(func_bindgen.results);
-        dbg!(&func.results);
-        src.push_str("{\n");
-        src.push_str(&lift_src);
-        // invoke
-        let invoke = format!(
-            "const result = {}.{}({})",
-            &self.get_interface_var_name(),
-            &func.name,
-            func.params
-                .iter()
-                .enumerate()
-                .map(|(i, name)| format!(
-                    "{}{}",
-                    name.0,
-                    if i < func.params.len() - 1 { ", " } else { "" }
-                ))
-                .collect::<String>()
-        );
-        src.push_str(&invoke);
-        src.push_str(";\n");
-        // prepare ret
-        match func.results.len() {
-            0 => {}
-            1 => {
-                dbg!(&lower_src);
-                src.push_str(&lower_src);
-                // src.push_str(
-                //     "const ret = alloc(8);
-                // std.mem.writeIntLittle(u32, ret[0..4], @intCast(@intFromPtr(result.ptr)));
-                // std.mem.writeIntLittle(u32, ret[4..8], @intCast(result.len));
-                // return ret;
-                // ",
-                // );
-            }
-            _ => {}
-        }
-        src.push_str("\n");
-        self.src.push_str(&interface_decl);
-        self.src.push_str(&src);
-        if abi::guest_export_needs_post_return(resolve, func) {
-            self.src.push_str(&format!(
-                "export fn __post_return_{}(arg: u32) void {{
-                  var buffer: [8]u8 = .{{0}} ** 8;
-                  std.mem.writeIntNative(u32, buffer[0..][0..@sizeOf(u32)], arg);
-                  const stringPtr = buffer[0..4];
-                  const stringSize = buffer[4..8];
-                  const bytesPtr = std.mem.readIntLittle(u32, @ptrCast(stringPtr));
-                  const ptr_size = std.mem.readIntLittle(u32, @ptrCast(stringSize));
-                  const casted: [*]u8 = @ptrFromInt(bytesPtr);
-                  allocator.free(casted[0..ptr_size]);
-              }}
-              
-              ",
-                func.name
-            ));
-        }
-        // dbg!(&self.src);
-    }
-
-    fn get_interface_var_name(&self) -> String {
-        let mut name = String::new();
-        match self.name {
-            Some(WorldKey::Name(k)) => {
-                dbg!("WORKLD KEY NAME");
-                name.push_str(&k.to_snake_case())
-            }
-            Some(WorldKey::Interface(id)) => {
-                dbg!("INTERFACE WORLD KEY");
-                let iface = &self.resolve.interfaces[*id];
-                let pkg = &self.resolve.packages[iface.package.unwrap()];
-                name.push_str(&pkg.name.namespace.to_snake_case());
-                name.push('_');
-                name.push_str(&pkg.name.name.to_snake_case());
-                name.push('_');
-                name.push_str(&iface.name.as_ref().unwrap().to_snake_case());
-            }
-            None => {
-                dbg!("NONE WORLD KEY");
-                name.push_str("Guest");
-                // name.push_str(&self.gen.world.to_snake_case())
-            }
-        }
-        name
-    }
-
-    fn get_zig_binding_ty(&self, ty: &Type) -> String {
-        match ty {
-            Type::Bool => "bool".into(),
-            Type::U8 => "u8".into(),
-            Type::U16 => "u16".into(),
-            Type::U32 => "u32".into(),
-            Type::U64 => "u64".into(),
-            Type::S8 => "s8".into(),
-            Type::S16 => "s16".into(),
-            Type::S32 => "s32".into(),
-            Type::S64 => "s64".into(),
-            Type::Float32 => todo!(),
-            Type::Float64 => todo!(),
-            Type::Char => todo!(),
-            Type::String => "[*]u8".into(),
-            Type::Id(_) => todo!(),
-        }
-    }
-
-    fn finish(&mut self) {
-        dbg!("FNIISH ");
-        for (_, export_func) in &self.export_funcs {
-            dbg!("FINISH FOR LOOP");
-            self.src.push_str(export_func);
-        }
+        let interface_decl = &func.name;
     }
 }
 
 struct FunctionBindgen<'a, 'b> {
     interface: &'a mut InterfaceGenerator<'b>,
     _func: &'a Function,
-    args: Vec<(String, String)>,
+    c_args: Vec<String>,
+    args: Vec<String>,
     lower_src: Source,
     lift_src: Source,
 }
@@ -630,86 +421,39 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
         Self {
             interface,
             _func: func,
+            c_args: Vec::new(),
             args: Vec::new(),
             lower_src: Source::default(),
             lift_src: Source::default(),
         }
     }
 
-    fn lower(&mut self, name: &str, ty: &Type, in_export: bool) {
-        dbg!("LOWER", &name, &ty);
-        let lower_name = format!("lower_{name}");
-        self.lower_value(name, ty, lower_name.as_ref());
-    }
-
-    fn lower_value(&mut self, param: &str, ty: &Type, lower_name: &str) {
-        match ty {
-            Type::Bool
-            | Type::U8
-            | Type::U16
-            | Type::U32
-            | Type::U64
-            | Type::S8
-            | Type::S16
-            | Type::S32
-            | Type::S64
-            | Type::Float32
-            | Type::Float64
-            | Type::Char => self.lower_src.push_str("return result;\n}\n"),
-            Type::String => self.lower_src.push_str(
-                "const ret = alloc(8);
-              std.mem.writeIntLittle(u32, ret[0..4], @intCast(@intFromPtr(result.ptr)));
-              std.mem.writeIntLittle(u32, ret[4..8], @intCast(result.len));
-              return ret;
-            }
-              ",
-            ),
-            Type::Id(_) => todo!(),
-        }
-    }
+    fn lower(&mut self, name: &str, ty: &Type, in_export: bool) {}
     fn lift(&mut self, name: &str, ty: &Type) {
         dbg!(&name);
         self.lift_value(name, ty);
+        self.args.push(name.to_string());
     }
 
     fn lift_value(&mut self, param: &str, ty: &Type) {
         match ty {
-            Type::Bool => {
-                self.args.push((param.to_string(), "bool".to_string()));
-            }
+            Type::Bool => todo!(),
             Type::U8 => {
-                self.args.push((param.to_string(), "u8".to_string()));
+                dbg!("ITS A u8");
             }
-            Type::U16 => {
-                self.args.push((param.to_string(), "u16".to_string()));
-            }
-            Type::U32 => {
-                self.args.push((param.to_string(), "u32".to_string()));
-            }
-            Type::U64 => {
-                self.args.push((param.to_string(), "u64".to_string()));
-            }
-            Type::S8 => {
-                self.args.push((param.to_string(), "s8".to_string()));
-            }
-            Type::S16 => {
-                self.args.push((param.to_string(), "s16".to_string()));
-            }
-            Type::S32 => {
-                self.args.push((param.to_string(), "s32".to_string()));
-            }
-            Type::S64 => {
-                self.args.push((param.to_string(), "s64".to_string()));
-            }
+            Type::U16 => todo!(),
+            Type::U32 => todo!(),
+            Type::U64 => todo!(),
+            Type::S8 => todo!(),
+            Type::S16 => todo!(),
+            Type::S32 => todo!(),
+            Type::S64 => todo!(),
             Type::Float32 => todo!(),
             Type::Float64 => todo!(),
             Type::Char => todo!(),
             Type::String => {
                 self.lift_src
-                    .push_str(&format!("const {param} = {param}Ptr[0..{param}Length];\n"));
-                self.args.push((format!("{param}Ptr"), "[*]u8".to_string()));
-                self.args
-                    .push((format!("{param}Length"), "u32".to_string()));
+                    .push_str(&format!("const {param} = {param}Ptr[0..{param}Length;"));
             }
             Type::Id(_) => todo!(),
         }
