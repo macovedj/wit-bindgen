@@ -461,7 +461,6 @@ pub trait WorldGenerator {
         // both imported and exported the right types are all used everywhere.
         let mut interfaces = Vec::new();
         for (name, export) in world.exports.iter() {
-            dbg!(&name);
             match export {
                 WorldItem::Function(f) => funcs.push((unwrap_name(name), f)),
                 WorldItem::Interface(id) => interfaces.push((name, id)),

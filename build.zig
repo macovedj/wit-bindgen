@@ -4,6 +4,9 @@ const std = @import("std");
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    b.export_symbol_names = &.{"concat"};
+    b.export_symbol_names = &.{"add"};
+    b.export_symbol_names = &.{@"example:foo/fun#concat"};
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options

@@ -27,6 +27,8 @@ const { blockingFlush,
   read,
   write } = streams;
 
+const base64Compile = str => WebAssembly.compile(typeof Buffer !== 'undefined' ? Buffer.from(str, 'base64') : Uint8Array.from(atob(str), b => b.charCodeAt(0)));
+
 function clampGuest(i, min, max) {
   if (i < min || i > max) throw new TypeError(`must be between ${min} and ${max}`);
   return i;
@@ -1543,12 +1545,25 @@ function add(arg0, arg1) {
   return clampGuest(ret, 0, 255);
 }
 
+function concat$1(arg0, arg1) {
+  const ptr0 = utf8Encode(arg0, realloc1, memory0);
+  const len0 = utf8EncodedLen;
+  const ptr1 = utf8Encode(arg1, realloc1, memory0);
+  const len1 = utf8EncodedLen;
+  const ret = exports1['example:foo/fun#concat'](ptr0, len0, ptr1, len1);
+  const ptr2 = dataView(memory0).getInt32(ret + 0, true);
+  const len2 = dataView(memory0).getInt32(ret + 4, true);
+  const result2 = utf8Decoder.decode(new Uint8Array(memory0.buffer, ptr2, len2));
+  return result2;
+}
+
 const $init = (async() => {
   const module0 = fetchCompile(new URL('./final.core.wasm', import.meta.url));
   const module1 = fetchCompile(new URL('./final.core2.wasm', import.meta.url));
-  const module2 = fetchCompile(new URL('./final.core3.wasm', import.meta.url));
-  const module3 = fetchCompile(new URL('./final.core4.wasm', import.meta.url));
+  const module2 = base64Compile('AGFzbQEAAAABQAlgAX8AYAN/fn8AYAJ/fwBgCH9/f39/f39/AGAEf39/fwBgAX8AYAR/f39/AX9gAX8Bf2AJf39/f39+fn9/AX8DFRQAAQECAgMBAQIEBAIAAAAFBgYHCAQFAXABFBQHZhUBMAAAATEAAQEyAAIBMwADATQABAE1AAUBNgAGATcABwE4AAgBOQAJAjEwAAoCMTEACwIxMgAMAjEzAA0CMTQADgIxNQAPAjE2ABACMTcAEQIxOAASAjE5ABMIJGltcG9ydHMBAAqXAhQJACAAQQARAAALDQAgACABIAJBAREBAAsNACAAIAEgAkECEQEACwsAIAAgAUEDEQIACwsAIAAgAUEEEQIACxcAIAAgASACIAMgBCAFIAYgB0EFEQMACw0AIAAgASACQQYRAQALDQAgACABIAJBBxEBAAsLACAAIAFBCBECAAsPACAAIAEgAiADQQkRBAALDwAgACABIAIgA0EKEQQACwsAIAAgAUELEQIACwkAIABBDBEAAAsJACAAQQ0RAAALCQAgAEEOEQAACwkAIABBDxEFAAsPACAAIAEgAiADQRARBgALDwAgACABIAIgA0EREQYACwkAIABBEhEHAAsZACAAIAEgAiADIAQgBSAGIAcgCEETEQgACwAuCXByb2R1Y2VycwEMcHJvY2Vzc2VkLWJ5AQ13aXQtY29tcG9uZW50BjAuMTYuMACFBwRuYW1lABMSd2l0LWNvbXBvbmVudDpzaGltAegGFAAxaW5kaXJlY3Qtd2FzaTpmaWxlc3lzdGVtL3ByZW9wZW5zLWdldC1kaXJlY3RvcmllcwEuaW5kaXJlY3Qtd2FzaTpmaWxlc3lzdGVtL3R5cGVzLXJlYWQtdmlhLXN0cmVhbQIvaW5kaXJlY3Qtd2FzaTpmaWxlc3lzdGVtL3R5cGVzLXdyaXRlLXZpYS1zdHJlYW0DMGluZGlyZWN0LXdhc2k6ZmlsZXN5c3RlbS90eXBlcy1hcHBlbmQtdmlhLXN0cmVhbQQnaW5kaXJlY3Qtd2FzaTpmaWxlc3lzdGVtL3R5cGVzLWdldC10eXBlBSZpbmRpcmVjdC13YXNpOmZpbGVzeXN0ZW0vdHlwZXMtb3Blbi1hdAYdaW5kaXJlY3Qtd2FzaTppby9zdHJlYW1zLXJlYWQHJmluZGlyZWN0LXdhc2k6aW8vc3RyZWFtcy1ibG9ja2luZy1yZWFkCCRpbmRpcmVjdC13YXNpOmlvL3N0cmVhbXMtY2hlY2std3JpdGUJHmluZGlyZWN0LXdhc2k6aW8vc3RyZWFtcy13cml0ZQoxaW5kaXJlY3Qtd2FzaTppby9zdHJlYW1zLWJsb2NraW5nLXdyaXRlLWFuZC1mbHVzaAsnaW5kaXJlY3Qtd2FzaTppby9zdHJlYW1zLWJsb2NraW5nLWZsdXNoDDNpbmRpcmVjdC13YXNpOmNsaS90ZXJtaW5hbC1zdGRpbi1nZXQtdGVybWluYWwtc3RkaW4NNWluZGlyZWN0LXdhc2k6Y2xpL3Rlcm1pbmFsLXN0ZG91dC1nZXQtdGVybWluYWwtc3Rkb3V0DjVpbmRpcmVjdC13YXNpOmNsaS90ZXJtaW5hbC1zdGRlcnItZ2V0LXRlcm1pbmFsLXN0ZGVycg8mYWRhcHQtd2FzaV9zbmFwc2hvdF9wcmV2aWV3MS1wcm9jX2V4aXQQJWFkYXB0LXdhc2lfc25hcHNob3RfcHJldmlldzEtZmRfd3JpdGURJGFkYXB0LXdhc2lfc25hcHNob3RfcHJldmlldzEtZmRfcmVhZBIlYWRhcHQtd2FzaV9zbmFwc2hvdF9wcmV2aWV3MS1mZF9jbG9zZRMmYWRhcHQtd2FzaV9zbmFwc2hvdF9wcmV2aWV3MS1wYXRoX29wZW4');
+  const module3 = base64Compile('AGFzbQEAAAABQAlgAX8AYAN/fn8AYAJ/fwBgCH9/f39/f39/AGAEf39/fwBgAX8AYAR/f39/AX9gAX8Bf2AJf39/f39+fn9/AX8CfhUAATAAAAABMQABAAEyAAEAATMAAgABNAACAAE1AAMAATYAAQABNwABAAE4AAIAATkABAACMTAABAACMTEAAgACMTIAAAACMTMAAAACMTQAAAACMTUABQACMTYABgACMTcABgACMTgABwACMTkACAAIJGltcG9ydHMBcAEUFAkaAQBBAAsUAAECAwQFBgcICQoLDA0ODxAREhMALglwcm9kdWNlcnMBDHByb2Nlc3NlZC1ieQENd2l0LWNvbXBvbmVudAYwLjE2LjAAHARuYW1lABUUd2l0LWNvbXBvbmVudDpmaXh1cHM');
   const instanceFlags0 = new WebAssembly.Global({ value: "i32", mutable: true }, 3);
+  const instanceFlags1 = new WebAssembly.Global({ value: "i32", mutable: true }, 3);
   Promise.all([module0, module1, module2, module3]).catch(() => {});
   ({ exports: exports0 } = await instantiateCore(await module2));
   ({ exports: exports1 } = await instantiateCore(await module0, {
@@ -1649,5 +1664,9 @@ const $init = (async() => {
 })();
 
 await $init;
+const fun = {
+  concat: concat$1,
+  
+};
 
-export { add, concat }
+export { fun, add, concat, fun as 'example:foo/fun' }

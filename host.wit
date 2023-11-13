@@ -1,7 +1,15 @@
 // wit/host.wit
 package example:foo
 
+interface fun {
+  concat: func(left: string, right: string) -> string
+}
+
+
+///
 world foo {
   export concat: func(left: string, right: string) -> string
   export add: func(left: u8, right: u8) -> u8
+  import fun;
+  export fun;
 }
