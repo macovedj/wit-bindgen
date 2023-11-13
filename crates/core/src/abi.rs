@@ -674,7 +674,6 @@ pub fn guest_export_needs_post_return(resolve: &Resolve, func: &Function) -> boo
 }
 
 fn needs_post_return(resolve: &Resolve, ty: &Type) -> bool {
-    dbg!(&ty);
     match ty {
         Type::String => true,
         Type::Id(id) => match &resolve.types[*id].kind {
@@ -746,11 +745,9 @@ impl<'a, B: Bindgen> Generator<'a, B> {
 
     fn call(&mut self, func: &Function) {
         let sig = self.resolve.wasm_signature(self.variant, func);
-        dbg!(&sig);
 
         match self.lift_lower {
             LiftLower::LowerArgsLiftResults => {
-                dbg!("FIRST KIND");
                 if !sig.indirect_params {
                     // If the parameters for this function aren't indirect
                     // (there aren't too many) then we simply do a normal lower
@@ -844,16 +841,13 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 });
             }
             LiftLower::LiftArgsLowerResults => {
-                dbg!("SECOND KIND");
                 if !sig.indirect_params {
-                    dbg!("DIRECT PARAMS");
                     // If parameters are not passed indirectly then we lift each
                     // argument in succession from the component wasm types that
                     // make-up the type.
                     let mut offset = 0;
                     let mut temp = Vec::new();
                     for (_, ty) in func.params.iter() {
-                        dbg!(&ty);
                         temp.truncate(0);
                         self.resolve.push_flat(ty, &mut temp);
                         for _ in 0..temp.len() {
@@ -882,7 +876,6 @@ impl<'a, B: Bindgen> Generator<'a, B> {
                 // This was dynamically allocated by the caller so after
                 // it's been read by the guest we need to deallocate it.
                 if let AbiVariant::GuestExport = self.variant {
-                    dbg!("GET DEALLOC");
                     if sig.indirect_params {
                         let (size, align) = self
                             .bindgen

@@ -17,3 +17,4 @@ wit-parser.workspace = true
 
 [dev-dependencies]
 test-helpers = { path = '../test-helpers' }
+wit-bindgen = { path = '../guest-rust' }

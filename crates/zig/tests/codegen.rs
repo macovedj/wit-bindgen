@@ -55,49 +55,54 @@ fn verify(dir: &Path, name: &str) {
     // TODO: However, there is still an issue. Since the go module does not
     // invoke the imported functions, they will be skipped by the compiler.
     // This will weaken the test's ability to verify imported functions
+    dbg!(&main);
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(&main)
         .expect("failed to open file");
     let mut reader = BufReader::new(file);
-    let mut buf = Vec::new();
-    reader.read_until(b'\n', &mut buf).unwrap();
-    // Skip over `package $WORLD` line
-    reader.read_until(b'\n', &mut Vec::new()).unwrap();
-    buf.append(&mut "package main\n".as_bytes().to_vec());
+    // let mut buf = Vec::new();
+    // reader.read_until(b'\n', &mut buf).unwrap();
+    // // Skip over `package $WORLD` line
+    // reader.read_until(b'\n', &mut Vec::new()).unwrap();
+    // buf.append(&mut "package main\n".as_bytes().to_vec());
 
-    // check if {name}_types.zig exists
-    let types_file = dir.join(format!("{name}_types.zig"));
-    if std::fs::metadata(types_file).is_ok() {
-        // create a directory called option and move the type file to option
-        std::fs::create_dir(dir.join("option")).expect("Failed to create directory");
-        std::fs::rename(
-            dir.join(format!("{name}_types.zig")),
-            dir.join("option").join(format!("{name}_types.zig")),
-        )
-        .expect("Failed to move file");
-        buf.append(&mut format!("import . \"{name}/option\"\n").as_bytes().to_vec());
-    }
+    // // check if {name}_types.zig exists
+    // let types_file = dir.join(format!("{name}_types.zig"));
+    // if std::fs::metadata(types_file).is_ok() {
+    //     // create a directory called option and move the type file to option
+    //     std::fs::create_dir(dir.join("option")).expect("Failed to create directory");
+    //     std::fs::rename(
+    //         dir.join(format!("{name}_types.zig")),
+    //         dir.join("option").join(format!("{name}_types.zig")),
+    //     )
+    //     .expect("Failed to move file");
+    //     buf.append(&mut format!("import . \"{name}/option\"\n").as_bytes().to_vec());
+    // }
 
-    reader.read_to_end(&mut buf).expect("Failed to read file");
-    buf.append(&mut "func main() {}".as_bytes().to_vec());
-    std::fs::write(&main, buf).expect("Failed to write to file");
+    // reader.read_to_end(&mut buf).expect("Failed to read file");
+    // buf.append(&mut "func main() {}".as_bytes().to_vec());
+    // std::fs::write(&main, buf).expect("Failed to write to file");
 
-    // create go.mod file
-    let mod_file = dir.join("go.mod");
-    let mut file = std::fs::File::create(mod_file).expect("Failed to create file go.mod");
-    file.write_all(format!("module {name}\n\ngo 1.20").as_bytes())
-        .expect("Failed to write to file");
+    // // create go.mod file
+    // let mod_file = dir.join("go.mod");
+    // let mut file = std::fs::File::create(mod_file).expect("Failed to create file go.mod");
+    // file.write_all(format!("module {name}\n\ngo 1.20").as_bytes())
+    //     .expect("Failed to write to file");
 
-    // run tinygo on Dir directory
+    // run zig on Dir directory
 
-    let mut cmd = Command::new("tinygo");
-    cmd.arg("build");
-    cmd.arg("-target=wasi");
-    cmd.arg("-o");
-    cmd.arg("go.wasm");
+    let mut cmd = Command::new("zig");
+    cmd.arg("build-exe");
     cmd.arg(format!("{name}.zig"));
+    cmd.arg("-target");
+    cmd.arg("wasm32-wasi");
+    cmd.arg("-rdynamic");
+    // cmd.arg("-target=wasi");
+    // cmd.arg("-o");
+    // cmd.arg("zig.wasm");
+    // cmd.arg(format!("{name}.zig"));
     cmd.current_dir(dir);
     test_helpers::run_command(&mut cmd);
 }

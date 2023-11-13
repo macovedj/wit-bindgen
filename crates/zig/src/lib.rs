@@ -332,34 +332,48 @@ impl WorldGenerator for ZigWasm {
         iface: InterfaceId,
         files: &mut wit_bindgen_core::Files,
     ) -> anyhow::Result<()> {
-        dbg!("EXPORTING INTERFACE");
-        // let mut export_names = Vec::new();
-        // let mut post_return_names = Vec::new();
         let iface = &resolve.interfaces[iface];
-        // dbg!(&iface.name.as_ref().unwrap());
         self.src.push_str(&format!(
             "const {} = struct {{\n",
             iface.name.as_ref().unwrap().to_upper_camel_case(),
         ));
         for (_name, func) in iface.functions.iter() {
-            self.src.push_str(&format!("fn {}(", &func.name));
-            // export_names.push(&func.name);
-            // if abi::guest_export_needs_post_return(resolve, func) {
-            // post_return_names.push(&func.name);
-            // };
+            self.src.push_str(&format!("fn guest_{}(", &func.name));
             for (name, ty) in &func.params {
                 self.src
                     .push_str(&format!("{name}: {}, ", self.get_zig_ty(ty)));
             }
             match func.results.len() {
-                0 => {}
+                0 => {
+                    self.src.push_str(") void {\n");
+                }
                 1 => {
                     let res = func.results.iter_types().last().unwrap();
                     self.src
-                        .push_str(&format!(") {} {{}}\n", self.get_zig_ty(res)));
+                        .push_str(&format!(") {} {{\n", self.get_zig_ty(res)));
                 }
                 _ => {}
             }
+            for (name, _) in &func.params {
+                self.src.push_str(&format!("_ = {name};\n"));
+            }
+            match func.results.len() {
+                0 => {
+                    // self.src.push_str(") void {\n");
+                }
+                1 => {
+                    // let res = func.results.iter_types().last().unwrap();
+                    // self.src
+                    //     .push_str(&format!(") {} {{\n", self.get_zig_ty(res)));
+                    self.src.push_str(
+                        "
+                    const ret: []u8 = &.{};
+                    return ret;\n",
+                    )
+                }
+                _ => {}
+            }
+            self.src.push_str("}\n");
         }
         self.src.push_str("};\n\n");
 
@@ -445,7 +459,7 @@ impl WorldGenerator for ZigWasm {
             match world_item {
                 WorldItem::Interface(iface) => {}
                 WorldItem::Function(func) => {
-                    self.src.push_str(&format!("fn {}(", &func.name));
+                    self.src.push_str(&format!("fn guest_{}(", &func.name));
                     export_names.push(&func.name);
                     if abi::guest_export_needs_post_return(resolve, func) {
                         post_return_names.push(&func.name);
@@ -789,7 +803,6 @@ impl InterfaceGenerator<'_> {
         name
     }
     fn get_package_name(&self) -> String {
-        // dbg!()
         match self.name {
             Some(key) => self.get_package_name_with(key),
             None => self.gen.world.to_upper_camel_case(),
@@ -803,9 +816,6 @@ impl InterfaceGenerator<'_> {
         self.src
             .push_str(&format!("{func_prefix}{}({params}){results}", func.name));
 
-        // let func_sig = self.get_func_signature_no_interface(resolve, func);
-        // dbg!(&func_sig);
-        // self.src.push_str(&func_sig);
         self.src.push_str("{\n");
     }
 
@@ -852,7 +862,11 @@ impl InterfaceGenerator<'_> {
     fn export(&mut self, resolve: &Resolve, func: &Function, func_prefix: Option<String>) {
         let mut func_bindgen = FunctionBindgen::new(self, func);
         match func.results.len() {
-            0 => {}
+            0 => {
+                func.params.iter().for_each(|(name, ty)| {
+                    func_bindgen.lift(&avoid_keyword(&name.to_snake_case()), ty);
+                });
+            }
             1 => {
                 func.params.iter().for_each(|(name, ty)| {
                     func_bindgen.lift(&avoid_keyword(&name.to_snake_case()), ty);
@@ -875,30 +889,54 @@ impl InterfaceGenerator<'_> {
         }
         interface_decl.push_str(") ");
         let mut src = String::new();
-        let result = func.results.iter_types().last().unwrap();
-        src.push_str(&self.get_zig_binding_ty(result));
+        let result = func.results.iter_types().last();
+        if let Some(res) = result {
+            src.push_str(&self.get_zig_binding_ty(res));
+        } else {
+            src.push_str("void ");
+        }
         src.push_str("{\n");
         src.push_str(&lift_src);
         // invoke
-        let invoke = format!(
-            "const result = {}.{}({})",
-            &self.get_interface_var_name(),
-            &func.name,
-            func.params
-                .iter()
-                .enumerate()
-                .map(|(i, name)| format!(
-                    "{}{}",
-                    name.0,
-                    if i < func.params.len() - 1 { ", " } else { "" }
-                ))
-                .collect::<String>()
-        );
+        // if func.results.len() > 0 {}
+        let invoke = if func.results.len() > 0 {
+            format!(
+                "const result = {}.guest_{}({})",
+                &self.get_interface_var_name(),
+                &func.name,
+                func.params
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| format!(
+                        "{}{}",
+                        name.0,
+                        if i < func.params.len() - 1 { ", " } else { "" }
+                    ))
+                    .collect::<String>()
+            )
+        } else {
+            format!(
+                "{}.guest_{}({})",
+                &self.get_interface_var_name(),
+                &func.name,
+                func.params
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| format!(
+                        "{}{}",
+                        name.0,
+                        if i < func.params.len() - 1 { ", " } else { "" }
+                    ))
+                    .collect::<String>()
+            )
+        };
         src.push_str(&invoke);
         src.push_str(";\n");
         // prepare ret
         match func.results.len() {
-            0 => {}
+            0 => {
+                src.push_str("}\n");
+            }
             1 => {
                 src.push_str(&lower_src);
                 // src.push_str(
@@ -1045,7 +1083,28 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
             }
               ",
             ),
-            Type::Id(_) => todo!(),
+            Type::Id(id) => {
+                let ty = &self.interface.resolve.types[*id]; // receive type
+                match &ty.kind {
+                    TypeDefKind::Record(_) => todo!(),
+                    TypeDefKind::Resource => todo!(),
+                    TypeDefKind::Handle(_) => todo!(),
+                    TypeDefKind::Flags(_) => todo!(),
+                    TypeDefKind::Tuple(_) => {
+                        dbg!("TUPLE SUPPORT");
+                    }
+                    TypeDefKind::Variant(_) => todo!(),
+                    TypeDefKind::Enum(_) => todo!(),
+                    TypeDefKind::Option(_) => todo!(),
+                    TypeDefKind::Result(_) => todo!(),
+                    TypeDefKind::List(_) => todo!(),
+                    TypeDefKind::Future(_) => todo!(),
+                    TypeDefKind::Stream(_) => todo!(),
+                    TypeDefKind::Type(_) => todo!(),
+                    TypeDefKind::Unknown => todo!(),
+                }
+                dbg!(&param);
+            }
         }
     }
     fn lift(&mut self, name: &str, ty: &Type) {
