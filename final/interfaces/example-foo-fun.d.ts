@@ -1,3 +1,7 @@
 export namespace ExampleFooFun {
-  export function concat(left: string, right: string): string;
+  export function concatRecord(input: Rec): string;
+}
+export interface Rec {
+  first: string,
+  second: string,
 }

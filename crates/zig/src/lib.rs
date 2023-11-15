@@ -1,4 +1,4 @@
-use heck::{ToKebabCase, ToSnakeCase, ToUpperCamelCase};
+use heck::{ToKebabCase, ToLowerCamelCase, ToSnakeCase, ToUpperCamelCase};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 use std::{fmt, mem};
@@ -260,22 +260,51 @@ impl ZigWasm {
         ZigWasm::default()
     }
 
-    fn get_zig_ty(&self, ty: &Type) -> String {
+    fn get_zig_ty(&self, resolve: &Resolve, ty: &Type) -> String {
         match ty {
             Type::Bool => "bool".into(),
             Type::U8 => "u8".into(),
             Type::U16 => "u16".into(),
             Type::U32 => "u32".into(),
             Type::U64 => "u64".into(),
-            Type::S8 => "s8".into(),
-            Type::S16 => "s16".into(),
-            Type::S32 => "s32".into(),
-            Type::S64 => "s64".into(),
-            Type::Float32 => todo!(),
-            Type::Float64 => todo!(),
-            Type::Char => todo!(),
+            Type::S8 => "i8".into(),
+            Type::S16 => "i16".into(),
+            Type::S32 => "i32".into(),
+            Type::S64 => "i64".into(),
+            Type::Float32 => "f32".into(),
+            Type::Float64 => "f64".into(),
+            Type::Char => "u8".to_string(),
             Type::String => "[]u8".into(),
-            Type::Id(_) => todo!(),
+            Type::Id(id) => {
+                // let ty = self.types.get(id);
+                let ty = &resolve.types[*id];
+                let mut output = String::new();
+                match &ty.kind {
+                    TypeDefKind::Record(Record { fields }) => {
+                        output.push_str("struct {\n");
+                        for field in fields {
+                            let field_ty = &self.get_zig_ty(resolve, &field.ty);
+                            output.push_str(&format!(".{} = {},\n", field.name, field_ty));
+                        }
+                        output.push_str("}\n");
+                        output
+                    }
+                    TypeDefKind::Resource => todo!(),
+                    TypeDefKind::Handle(_) => todo!(),
+                    TypeDefKind::Flags(_) => todo!(),
+                    TypeDefKind::Tuple(_) => todo!(),
+                    TypeDefKind::Variant(_) => todo!(),
+                    TypeDefKind::Enum(_) => todo!(),
+                    TypeDefKind::Option(_) => todo!(),
+                    TypeDefKind::Result(_) => todo!(),
+                    TypeDefKind::List(_) => todo!(),
+                    TypeDefKind::Future(_) => todo!(),
+                    TypeDefKind::Stream(_) => todo!(),
+                    TypeDefKind::Type(_) => todo!(),
+                    TypeDefKind::Unknown => todo!(),
+                }
+                // return "".into();
+            }
         }
     }
 
@@ -333,15 +362,68 @@ impl WorldGenerator for ZigWasm {
         files: &mut wit_bindgen_core::Files,
     ) -> anyhow::Result<()> {
         let iface = &resolve.interfaces[iface];
+
         self.src.push_str(&format!(
             "const {} = struct {{\n",
             iface.name.as_ref().unwrap().to_upper_camel_case(),
         ));
+        for (ty_name, ty_id) in &iface.types {
+            let ty = &resolve.types[*ty_id];
+            match &ty.kind {
+                TypeDefKind::Record(Record { fields }) => {
+                    self.src.push_str(&format!(
+                        "const {} = struct {{\n",
+                        ty_name.to_upper_camel_case()
+                    ));
+                    for Field { name, ty, .. } in fields {
+                        self.src
+                            .push_str(&format!("{name}: {},\n", self.get_zig_ty(resolve, ty)));
+                    }
+                    self.src.push_str("};\n");
+                }
+                TypeDefKind::Resource => todo!(),
+                TypeDefKind::Handle(_) => todo!(),
+                TypeDefKind::Flags(_) => todo!(),
+                TypeDefKind::Tuple(_) => todo!(),
+                TypeDefKind::Variant(_) => todo!(),
+                TypeDefKind::Enum(_) => todo!(),
+                TypeDefKind::Option(_) => todo!(),
+                TypeDefKind::Result(_) => todo!(),
+                TypeDefKind::List(_) => todo!(),
+                TypeDefKind::Future(_) => todo!(),
+                TypeDefKind::Stream(_) => todo!(),
+                TypeDefKind::Type(_) => todo!(),
+                TypeDefKind::Unknown => todo!(),
+            }
+        }
         for (_name, func) in iface.functions.iter() {
-            self.src.push_str(&format!("fn guest_{}(", &func.name));
+            self.src
+                .push_str(&format!("fn guest{}(", &func.name.to_upper_camel_case()));
             for (name, ty) in &func.params {
-                self.src
-                    .push_str(&format!("{name}: {}, ", self.get_zig_ty(ty)));
+                match ty {
+                    Type::Bool
+                    | Type::U8
+                    | Type::U16
+                    | Type::U32
+                    | Type::U64
+                    | Type::S8
+                    | Type::S16
+                    | Type::S32
+                    | Type::S64
+                    | Type::Float32
+                    | Type::Float64
+                    | Type::Char
+                    | Type::String => self
+                        .src
+                        .push_str(&format!("{name}: {}, ", self.get_zig_ty(resolve, ty))),
+                    Type::Id(id) => {
+                        let ty = &resolve.types[*id];
+                        self.src.push_str(&format!(
+                            "{name}: {}",
+                            ty.name.clone().unwrap().to_upper_camel_case()
+                        ));
+                    }
+                }
             }
             match func.results.len() {
                 0 => {
@@ -350,7 +432,7 @@ impl WorldGenerator for ZigWasm {
                 1 => {
                     let res = func.results.iter_types().last().unwrap();
                     self.src
-                        .push_str(&format!(") {} {{\n", self.get_zig_ty(res)));
+                        .push_str(&format!(") {} {{\n", self.get_zig_ty(resolve, res)));
                 }
                 _ => {}
             }
@@ -365,11 +447,77 @@ impl WorldGenerator for ZigWasm {
                     // let res = func.results.iter_types().last().unwrap();
                     // self.src
                     //     .push_str(&format!(") {} {{\n", self.get_zig_ty(res)));
-                    self.src.push_str(
-                        "
-                    const ret: []u8 = &.{};
-                    return ret;\n",
-                    )
+                    let result = func.results.iter_types().last();
+                    if let Some(res) = result {
+                        match res {
+                            Type::Bool => self.src.push_str(
+                                "
+                            const ret: bool = 4;
+                            return ret;\n",
+                            ),
+                            Type::U8 => self.src.push_str(
+                                "
+                            const ret: u8 = 4;
+                            return ret;\n",
+                            ),
+                            Type::U16 => self.src.push_str(
+                                "
+                            const ret: u16 = 4;
+                            return ret;\n",
+                            ),
+                            Type::U32 => self.src.push_str(
+                                "
+                            const ret: u32 = 4;
+                            return ret;\n",
+                            ),
+                            Type::U64 => self.src.push_str(
+                                "
+                            const ret: u64 = 4;
+                            return ret;\n",
+                            ),
+                            Type::S8 => self.src.push_str(
+                                "
+                            const ret: i8 = 4;
+                            return ret;\n",
+                            ),
+                            Type::S16 => self.src.push_str(
+                                "
+                            const ret: i16 = 4;
+                            return ret;\n",
+                            ),
+                            Type::S32 => self.src.push_str(
+                                "
+                            const ret: i32 = 4;
+                            return ret;\n",
+                            ),
+                            Type::S64 => self.src.push_str(
+                                "
+                            const ret: i64 = 4;
+                            return ret;\n",
+                            ),
+                            Type::Float32 => self.src.push_str(
+                                "
+                            const ret: f32 = 4;
+                            return ret;\n",
+                            ),
+                            Type::Float64 => self.src.push_str(
+                                "
+                            const ret: f64 = 4;
+                            return ret;\n",
+                            ),
+                            Type::Char => self.src.push_str(
+                                "
+                            const ret: u8 = 4;
+                            return ret;\n",
+                            ),
+                            Type::String => self.src.push_str(
+                                "
+                            const ret: []u8 = &.{};
+                            return ret;\n",
+                            ),
+                            Type::Id(_) => todo!(),
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -459,21 +607,22 @@ impl WorldGenerator for ZigWasm {
             match world_item {
                 WorldItem::Interface(iface) => {}
                 WorldItem::Function(func) => {
-                    self.src.push_str(&format!("fn guest_{}(", &func.name));
+                    self.src
+                        .push_str(&format!("fn guest{}(", &func.name.to_upper_camel_case()));
                     export_names.push(&func.name);
                     if abi::guest_export_needs_post_return(resolve, func) {
                         post_return_names.push(&func.name);
                     };
                     for (name, ty) in &func.params {
                         self.src
-                            .push_str(&format!("{name}: {}, ", self.get_zig_ty(ty)));
+                            .push_str(&format!("{name}: {}, ", self.get_zig_ty(resolve, ty)));
                     }
                     match func.results.len() {
                         0 => {}
                         1 => {
                             let res = func.results.iter_types().last().unwrap();
                             self.src
-                                .push_str(&format!(") {} {{}}\n", self.get_zig_ty(res)));
+                                .push_str(&format!(") {} {{}}\n", self.get_zig_ty(resolve, res)));
                         }
                         _ => {}
                     }
@@ -560,7 +709,7 @@ impl InterfaceGenerator<'_> {
             Type::S64 => "int64".into(),
             Type::Float32 => "float32".into(),
             Type::Float64 => "float64".into(),
-            Type::Char => "rune".into(),
+            Type::Char => "u8".into(),
             Type::String => "string".into(),
             Type::Id(id) => {
                 let ty = &self.resolve().types[*id];
@@ -588,7 +737,11 @@ impl InterfaceGenerator<'_> {
                     _ => {
                         if let Some(name) = &ty.name {
                             if let TypeOwner::Interface(owner) = ty.owner {
+                                dbg!(&name);
+                                dbg!(&self.gen.interface_names);
+                                dbg!(&owner);
                                 let key = &self.gen.interface_names[&owner];
+                                dbg!(&key);
                                 let iface = self.get_ty_name_with(key);
                                 format!("{iface}{name}", name = name.to_upper_camel_case())
                             } else {
@@ -617,7 +770,7 @@ impl InterfaceGenerator<'_> {
             Type::S64 => "S64".into(),
             Type::Float32 => "F32".into(),
             Type::Float64 => "F64".into(),
-            Type::Char => "Byte".into(),
+            Type::Char => "u8".into(),
             Type::String => "String".into(),
             Type::Id(id) => {
                 let ty = &self.resolve.types[*id];
@@ -901,9 +1054,9 @@ impl InterfaceGenerator<'_> {
         // if func.results.len() > 0 {}
         let invoke = if func.results.len() > 0 {
             format!(
-                "const result = {}.guest_{}({})",
+                "const result = {}.guest{}({})",
                 &self.get_interface_var_name(),
-                &func.name,
+                &func.name.to_upper_camel_case(),
                 func.params
                     .iter()
                     .enumerate()
@@ -916,9 +1069,9 @@ impl InterfaceGenerator<'_> {
             )
         } else {
             format!(
-                "{}.guest_{}({})",
+                "{}.guest{}({})",
                 &self.get_interface_var_name(),
-                &func.name,
+                &func.name.to_upper_camel_case(),
                 func.params
                     .iter()
                     .enumerate()
@@ -1022,9 +1175,9 @@ impl InterfaceGenerator<'_> {
             Type::S16 => "s16".into(),
             Type::S32 => "s32".into(),
             Type::S64 => "s64".into(),
-            Type::Float32 => todo!(),
-            Type::Float64 => todo!(),
-            Type::Char => todo!(),
+            Type::Float32 => "f32".into(),
+            Type::Float64 => "f64".into(),
+            Type::Char => "u8".into(),
             Type::String => "[*]u8".into(),
             Type::Id(_) => todo!(),
         }
@@ -1086,7 +1239,7 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
             Type::Id(id) => {
                 let ty = &self.interface.resolve.types[*id]; // receive type
                 match &ty.kind {
-                    TypeDefKind::Record(_) => todo!(),
+                    TypeDefKind::Record(Record { fields }) => {}
                     TypeDefKind::Resource => todo!(),
                     TypeDefKind::Handle(_) => todo!(),
                     TypeDefKind::Flags(_) => todo!(),
@@ -1097,7 +1250,10 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                     TypeDefKind::Enum(_) => todo!(),
                     TypeDefKind::Option(_) => todo!(),
                     TypeDefKind::Result(_) => todo!(),
-                    TypeDefKind::List(_) => todo!(),
+                    TypeDefKind::List(ty) => self.lower_src.push_str(
+                        "const ret = alloc(8);
+                    ",
+                    ),
                     TypeDefKind::Future(_) => todo!(),
                     TypeDefKind::Stream(_) => todo!(),
                     TypeDefKind::Type(_) => todo!(),
@@ -1129,20 +1285,24 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                 self.args.push((param.to_string(), "u64".to_string()));
             }
             Type::S8 => {
-                self.args.push((param.to_string(), "s8".to_string()));
+                self.args.push((param.to_string(), "i8".to_string()));
             }
             Type::S16 => {
-                self.args.push((param.to_string(), "s16".to_string()));
+                self.args.push((param.to_string(), "i16".to_string()));
             }
             Type::S32 => {
-                self.args.push((param.to_string(), "s32".to_string()));
+                self.args.push((param.to_string(), "i32".to_string()));
             }
             Type::S64 => {
-                self.args.push((param.to_string(), "s64".to_string()));
+                self.args.push((param.to_string(), "i64".to_string()));
             }
-            Type::Float32 => todo!(),
-            Type::Float64 => todo!(),
-            Type::Char => todo!(),
+            Type::Float32 => {
+                self.args.push((param.to_string(), "f32".to_string()));
+            }
+            Type::Float64 => {
+                self.args.push((param.to_string(), "f64".to_string()));
+            }
+            Type::Char => self.args.push((param.to_string(), "u8".to_string())),
             Type::String => {
                 self.lift_src
                     .push_str(&format!("const {param} = {param}Ptr[0..{param}Length];\n"));
@@ -1150,7 +1310,48 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                 self.args
                     .push((format!("{param}Length"), "u32".to_string()));
             }
-            Type::Id(_) => todo!(),
+            Type::Id(id) => {
+                let ty = &self.interface.resolve.types[*id]; // receive type
+                match &ty.kind {
+                    TypeDefKind::Record(Record { fields }) => {
+                        for field in fields {
+                            self.lift_src.push_str(&format!(
+                                "const {} = {}Ptr[0..{}Length];\n",
+                                field.name, field.name, field.name
+                            ));
+                            self.args
+                                .push((format!("{}Ptr", field.name), "[*]u8".to_string()));
+                            self.args
+                                .push((format!("{}Length", field.name), "u32".to_string()));
+                        }
+                        self.lift_src.push_str(&format!(
+                            "const {param} = {}.{} {{\n",
+                            self.interface
+                                .get_interface_var_name()
+                                .to_upper_camel_case(),
+                            ty.name.clone().unwrap().to_upper_camel_case()
+                        ));
+                        for field in fields {
+                            self.lift_src
+                                .push_str(&format!(".{} = {},\n", field.name, field.name));
+                        }
+                        self.lift_src.push_str("};\n");
+                    }
+                    TypeDefKind::Resource => todo!(),
+                    TypeDefKind::Handle(_) => todo!(),
+                    TypeDefKind::Flags(_) => todo!(),
+                    TypeDefKind::Tuple(_) => todo!(),
+                    TypeDefKind::Variant(_) => todo!(),
+                    TypeDefKind::Enum(_) => todo!(),
+                    TypeDefKind::Option(_) => todo!(),
+                    TypeDefKind::Result(_) => todo!(),
+                    TypeDefKind::List(_) => todo!(),
+                    TypeDefKind::Future(_) => todo!(),
+                    TypeDefKind::Stream(_) => todo!(),
+                    TypeDefKind::Type(_) => todo!(),
+                    TypeDefKind::Unknown => todo!(),
+                }
+            }
         }
     }
 }

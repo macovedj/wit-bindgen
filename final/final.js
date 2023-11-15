@@ -29,11 +29,6 @@ const { blockingFlush,
 
 const base64Compile = str => WebAssembly.compile(typeof Buffer !== 'undefined' ? Buffer.from(str, 'base64') : Uint8Array.from(atob(str), b => b.charCodeAt(0)));
 
-function clampGuest(i, min, max) {
-  if (i < min || i > max) throw new TypeError(`must be between ${min} and ${max}`);
-  return i;
-}
-
 let dv = new DataView(new ArrayBuffer());
 const dataView = mem => dv.buffer === mem.buffer ? dv : dv = new DataView(mem.buffer);
 
@@ -60,12 +55,6 @@ const toUint64 = val => BigInt.asUintN(64, val);
 
 function toUint32(val) {
   return val >>> 0;
-}
-
-function toUint8(val) {
-  val >>>= 0;
-  val %= 2 ** 8;
-  return val;
 }
 
 const utf8Decoder = new TextDecoder();
@@ -1540,21 +1529,17 @@ function concat(arg0, arg1) {
   return result2;
 }
 
-function add(arg0, arg1) {
-  const ret = exports1.__export_add(toUint8(arg0), toUint8(arg1));
-  return clampGuest(ret, 0, 255);
-}
-
-function concat$1(arg0, arg1) {
-  const ptr0 = utf8Encode(arg0, realloc1, memory0);
-  const len0 = utf8EncodedLen;
-  const ptr1 = utf8Encode(arg1, realloc1, memory0);
+function concatRecord(arg0) {
+  const {first: v0_0, second: v0_1 } = arg0;
+  const ptr1 = utf8Encode(v0_0, realloc1, memory0);
   const len1 = utf8EncodedLen;
-  const ret = exports1['example:foo/fun#concat'](ptr0, len0, ptr1, len1);
-  const ptr2 = dataView(memory0).getInt32(ret + 0, true);
-  const len2 = dataView(memory0).getInt32(ret + 4, true);
-  const result2 = utf8Decoder.decode(new Uint8Array(memory0.buffer, ptr2, len2));
-  return result2;
+  const ptr2 = utf8Encode(v0_1, realloc1, memory0);
+  const len2 = utf8EncodedLen;
+  const ret = exports1['example:foo/fun#concat-record'](ptr1, len1, ptr2, len2);
+  const ptr3 = dataView(memory0).getInt32(ret + 0, true);
+  const len3 = dataView(memory0).getInt32(ret + 4, true);
+  const result3 = utf8Decoder.decode(new Uint8Array(memory0.buffer, ptr3, len3));
+  return result3;
 }
 
 const $init = (async() => {
@@ -1665,8 +1650,8 @@ const $init = (async() => {
 
 await $init;
 const fun = {
-  concat: concat$1,
+  concatRecord: concatRecord,
   
 };
 
-export { fun, add, concat, fun as 'example:foo/fun' }
+export { fun, concat, fun as 'example:foo/fun' }

@@ -13,4 +13,3 @@ import { WasiIoStreams } from './interfaces/wasi-io-streams.js';
 import { ExampleFooFun } from './interfaces/example-foo-fun.js';
 export const fun: typeof ExampleFooFun;
 export function concat(left: string, right: string): string;
-export function add(left: number, right: number): number;

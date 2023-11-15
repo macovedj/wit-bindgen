@@ -19,17 +19,21 @@ export fn cabi_realloc(origPtr: *[]u8, origSize: u8, alignment: u8, newSize: u8)
   return buf.ptr;
 }
 
-export fn @"example:foo/fun#concat"(leftPtr: [*]u8, leftLength: u32, rightPtr: [*]u8, rightLength: u32, ) [*]u8{
-  const left = leftPtr[0..leftLength];
-  const right = rightPtr[0..rightLength];
-  const result = Fun.guest_concat(left, right);
+export fn @"example:foo/fun#concat-record"(firstPtr: [*]u8, firstLength: u32, secondPtr: [*]u8, secondLength: u32, ) [*]u8{
+  const first = firstPtr[0..firstLength];
+  const second = secondPtr[0..secondLength];
+  const input = Fun.Rec {
+    .first = first,
+    .second = second,
+  };
+  const result = Fun.guestConcatRecord(input);
   const ret = alloc(8);
   std.mem.writeIntLittle(u32, ret[0..4], @intCast(@intFromPtr(result.ptr)));
   std.mem.writeIntLittle(u32, ret[4..8], @intCast(result.len));
   return ret;
 }
 
-export fn @"__post_return_example:foo/fun#concat"(arg: u32) void {
+export fn @"__post_return_example:foo/fun#concat-record"(arg: u32) void {
   var buffer: [8]u8 = .{0} ** 8;
   std.mem.writeIntNative(u32, buffer[0..][0..@sizeOf(u32)], arg);
   const stringPtr = buffer[0..4];
@@ -43,7 +47,7 @@ export fn @"__post_return_example:foo/fun#concat"(arg: u32) void {
 export fn __export_concat(leftPtr: [*]u8, leftLength: u32, rightPtr: [*]u8, rightLength: u32, ) [*]u8{
   const left = leftPtr[0..leftLength];
   const right = rightPtr[0..rightLength];
-  const result = Guest.guest_concat(left, right);
+  const result = Guest.guestConcat(left, right);
   const ret = alloc(8);
   std.mem.writeIntLittle(u32, ret[0..4], @intCast(@intFromPtr(result.ptr)));
   std.mem.writeIntLittle(u32, ret[4..8], @intCast(result.len));
@@ -61,15 +65,13 @@ export fn __post_return_concat(arg: u32) void {
   allocator.free(casted[0..ptr_size]);
 }
 
-export fn __export_add(left: u8, right: u8, ) u8{
-  const result = Guest.guest_add(left, right);
-  return result;
-}
-
 const Fun = struct {
-  fn guest_concat(left: []u8, right: []u8, ) []u8 {
-    _ = left;
-    _ = right;
+  const Rec = struct {
+    first: []u8,
+    second: []u8,
+  };
+  fn guestConcatRecord(input: Rec) []u8 {
+    _ = input;
     
     const ret: []u8 = &.{};
     return ret;
@@ -77,13 +79,11 @@ const Fun = struct {
 };
 
 const Guest = struct {
-  fn guest_concat(left: []u8, right: []u8, ) []u8 {}
-  fn guest_add(left: u8, right: u8, ) u8 {}
+  fn guestConcat(left: []u8, right: []u8, ) []u8 {}
 };
 
 comptime {
   @export(__export_concat, .{ .name = "concat" });
-  @export(__export_add, .{ .name = "add" });
   @export(__post_return_concat, . { .name = "cabi_post_concat" });
 }
 
