@@ -276,33 +276,60 @@ impl ZigWasm {
             Type::Char => "u8".to_string(),
             Type::String => "[]u8".into(),
             Type::Id(id) => {
-                // let ty = self.types.get(id);
                 let ty = &resolve.types[*id];
                 let mut output = String::new();
-                match &ty.kind {
-                    TypeDefKind::Record(Record { fields }) => {
-                        output.push_str("struct {\n");
-                        for field in fields {
-                            let field_ty = &self.get_zig_ty(resolve, &field.ty);
-                            output.push_str(&format!(".{} = {},\n", field.name, field_ty));
+                if let Some(ty) = &ty.name {
+                    output.push_str(&ty.to_upper_camel_case());
+                } else {
+                    match &ty.kind {
+                        TypeDefKind::Record(_) => todo!(),
+                        TypeDefKind::Resource => todo!(),
+                        TypeDefKind::Handle(_) => todo!(),
+                        TypeDefKind::Flags(_) => todo!(),
+                        TypeDefKind::Tuple(Tuple { types }) => {
+                            output.push_str("std.meta.Tuple(&.{");
+                            for ty in types {
+                                output.push_str(&self.get_zig_ty(resolve, ty));
+                                output.push_str(", ");
+                            }
+                            output.push_str("})");
                         }
-                        output.push_str("}\n");
-                        output
+                        TypeDefKind::Variant(_) => todo!(),
+                        TypeDefKind::Enum(_) => todo!(),
+                        TypeDefKind::Option(_) => todo!(),
+                        TypeDefKind::Result(_) => todo!(),
+                        TypeDefKind::List(_) => todo!(),
+                        TypeDefKind::Future(_) => todo!(),
+                        TypeDefKind::Stream(_) => todo!(),
+                        TypeDefKind::Type(_) => todo!(),
+                        TypeDefKind::Unknown => todo!(),
                     }
-                    TypeDefKind::Resource => todo!(),
-                    TypeDefKind::Handle(_) => todo!(),
-                    TypeDefKind::Flags(_) => todo!(),
-                    TypeDefKind::Tuple(_) => todo!(),
-                    TypeDefKind::Variant(_) => todo!(),
-                    TypeDefKind::Enum(_) => todo!(),
-                    TypeDefKind::Option(_) => todo!(),
-                    TypeDefKind::Result(_) => todo!(),
-                    TypeDefKind::List(_) => todo!(),
-                    TypeDefKind::Future(_) => todo!(),
-                    TypeDefKind::Stream(_) => todo!(),
-                    TypeDefKind::Type(_) => todo!(),
-                    TypeDefKind::Unknown => todo!(),
                 }
+                output
+                // match &ty.kind {
+                //     TypeDefKind::Record(Record { fields }) => {
+                //         // output.push_str("struct {\n");
+                //         // for field in fields {
+                //         //     let field_ty = &self.get_zig_ty(resolve, &field.ty);
+                //         //     output.push_str(&format!(".{} = {},\n", field.name, field_ty));
+                //         // }
+                //         // output.push_str("}\n");
+                //         // output
+                //     }
+                //     TypeDefKind::Resource => todo!(),
+                //     TypeDefKind::Handle(_) => todo!(),
+                //     TypeDefKind::Flags(_) => todo!(),
+                //     TypeDefKind::Tuple(_) => todo!(),
+                //     TypeDefKind::Variant(_) => todo!(),
+                //     TypeDefKind::Enum(_) => todo!(),
+                //     TypeDefKind::Option(_) => todo!(),
+                //     TypeDefKind::Result(_) => todo!(),
+                //     TypeDefKind::List(_) => todo!(),
+                //     TypeDefKind::Future(_) => todo!(),
+                //     TypeDefKind::Stream(_) => todo!(),
+                //     TypeDefKind::Type(_) => todo!(),
+                //     TypeDefKind::Unknown => todo!(),
+                // }
                 // return "".into();
             }
         }
@@ -368,7 +395,9 @@ impl WorldGenerator for ZigWasm {
             iface.name.as_ref().unwrap().to_upper_camel_case(),
         ));
         for (ty_name, ty_id) in &iface.types {
+            // let thing = ty_id.idx;
             let ty = &resolve.types[*ty_id];
+            let ty_id = ty_id.index();
             match &ty.kind {
                 TypeDefKind::Record(Record { fields }) => {
                     self.src.push_str(&format!(
@@ -384,7 +413,16 @@ impl WorldGenerator for ZigWasm {
                 TypeDefKind::Resource => todo!(),
                 TypeDefKind::Handle(_) => todo!(),
                 TypeDefKind::Flags(_) => todo!(),
-                TypeDefKind::Tuple(_) => todo!(),
+                TypeDefKind::Tuple(Tuple { types }) => {
+                    // self.src
+                    //     .push_str(&format!("const Tuple{ty_id} = std.meta.Tuple(&.{{"));
+                    // for tuple_ty in types {
+                    //     self.src.push_str(&self.get_zig_ty(resolve, tuple_ty));
+                    //     self.src.push_str(", ");
+                    // }
+                    // self.src.push_str("});");
+                    dbg!("SOME TUPLE");
+                }
                 TypeDefKind::Variant(_) => todo!(),
                 TypeDefKind::Enum(_) => todo!(),
                 TypeDefKind::Option(_) => todo!(),
@@ -392,7 +430,9 @@ impl WorldGenerator for ZigWasm {
                 TypeDefKind::List(_) => todo!(),
                 TypeDefKind::Future(_) => todo!(),
                 TypeDefKind::Stream(_) => todo!(),
-                TypeDefKind::Type(_) => todo!(),
+                TypeDefKind::Type(_) => {
+                    dbg!("& SOME TY");
+                }
                 TypeDefKind::Unknown => todo!(),
             }
         }
@@ -418,10 +458,36 @@ impl WorldGenerator for ZigWasm {
                         .push_str(&format!("{name}: {}, ", self.get_zig_ty(resolve, ty))),
                     Type::Id(id) => {
                         let ty = &resolve.types[*id];
-                        self.src.push_str(&format!(
-                            "{name}: {}",
-                            ty.name.clone().unwrap().to_upper_camel_case()
-                        ));
+                        if let Some(type_name) = &ty.name {
+                            self.src
+                                .push_str(&format!("{name}: {}", type_name.to_upper_camel_case()));
+                        } else {
+                            match &ty.kind {
+                                TypeDefKind::Record(_) => todo!(),
+                                TypeDefKind::Resource => todo!(),
+                                TypeDefKind::Handle(_) => todo!(),
+                                TypeDefKind::Flags(_) => todo!(),
+                                TypeDefKind::Tuple(Tuple { types }) => {
+                                    self.src.push_str(&format!("{name}: std.meta.Tuple(&.{{ "));
+                                    for tuple_ty in types {
+                                        self.src.push_str(&format!(
+                                            "{},",
+                                            self.get_zig_ty(resolve, tuple_ty)
+                                        ));
+                                    }
+                                    self.src.push_str("})")
+                                }
+                                TypeDefKind::Variant(_) => todo!(),
+                                TypeDefKind::Enum(_) => todo!(),
+                                TypeDefKind::Option(_) => todo!(),
+                                TypeDefKind::Result(_) => todo!(),
+                                TypeDefKind::List(_) => todo!(),
+                                TypeDefKind::Future(_) => todo!(),
+                                TypeDefKind::Stream(_) => todo!(),
+                                TypeDefKind::Type(_) => todo!(),
+                                TypeDefKind::Unknown => todo!(),
+                            }
+                        }
                     }
                 }
             }
@@ -515,7 +581,66 @@ impl WorldGenerator for ZigWasm {
                             const ret: []u8 = &.{};
                             return ret;\n",
                             ),
-                            Type::Id(_) => todo!(),
+                            Type::Id(id) => {
+                                let ty = &resolve.types[*id];
+                                match &ty.kind {
+                                    TypeDefKind::Record(Record { fields }) => {
+                                        self.src.push_str(&format!(
+                                            "const ret = {} {{\n",
+                                            ty.name.clone().unwrap().to_upper_camel_case()
+                                        ));
+                                        for Field { name, ty, .. } in fields {
+                                            match ty {
+                                                Type::Bool => {
+                                                    self.src
+                                                        .push_str(&format!(".{name} = true,\n"));
+                                                }
+                                                Type::U8
+                                                | Type::U16
+                                                | Type::U32
+                                                | Type::U64
+                                                | Type::S8
+                                                | Type::S16
+                                                | Type::S32
+                                                | Type::S64
+                                                | Type::Float32
+                                                | Type::Float64
+                                                | Type::Char
+                                                | Type::String => {
+                                                    self.src
+                                                        .push_str(&format!(".{name} = \"\",\n"));
+                                                }
+                                                Type::Id(_) => {
+                                                    self.src
+                                                        .push_str(&format!(".{name} = \"\",\n"));
+                                                }
+                                            }
+                                        }
+                                        self.src.push_str(
+                                            "};
+                                        return ret;
+                                        ",
+                                        );
+                                    }
+                                    TypeDefKind::Resource => todo!(),
+                                    TypeDefKind::Handle(_) => todo!(),
+                                    TypeDefKind::Flags(_) => todo!(),
+                                    TypeDefKind::Tuple(Tuple { types }) => {
+                                        self.src.push_str(&format!(
+                                            "const ret = .{{}};\nreturn ret;\n"
+                                        ));
+                                    }
+                                    TypeDefKind::Variant(_) => todo!(),
+                                    TypeDefKind::Enum(_) => todo!(),
+                                    TypeDefKind::Option(_) => todo!(),
+                                    TypeDefKind::Result(_) => todo!(),
+                                    TypeDefKind::List(_) => todo!(),
+                                    TypeDefKind::Future(_) => todo!(),
+                                    TypeDefKind::Stream(_) => todo!(),
+                                    TypeDefKind::Type(_) => todo!(),
+                                    TypeDefKind::Unknown => todo!(),
+                                }
+                            }
                         }
                     }
                 }
@@ -1026,6 +1151,7 @@ impl InterfaceGenerator<'_> {
                 });
                 let ty = func.results.iter_types().next().unwrap();
                 func_bindgen.lower("result", ty, true);
+                func_bindgen.lower_src.push_str("return ret;\n}\n");
             }
             _ => {}
         }
@@ -1092,13 +1218,6 @@ impl InterfaceGenerator<'_> {
             }
             1 => {
                 src.push_str(&lower_src);
-                // src.push_str(
-                //     "const ret = alloc(8);
-                // std.mem.writeIntLittle(u32, ret[0..4], @intCast(@intFromPtr(result.ptr)));
-                // std.mem.writeIntLittle(u32, ret[4..8], @intCast(result.len));
-                // return ret;
-                // ",
-                // );
             }
             _ => {}
         }
@@ -1179,7 +1298,27 @@ impl InterfaceGenerator<'_> {
             Type::Float64 => "f64".into(),
             Type::Char => "u8".into(),
             Type::String => "[*]u8".into(),
-            Type::Id(_) => todo!(),
+            Type::Id(id) => {
+                "[*]u8".into()
+                // match &ty.kind {
+                //     TypeDefKind::Record(Record { fields }) => {
+                //       ty.
+                //     }
+                //     TypeDefKind::Resource => todo!(),
+                //     TypeDefKind::Handle(_) => todo!(),
+                //     TypeDefKind::Flags(_) => todo!(),
+                //     TypeDefKind::Tuple(_) => todo!(),
+                //     TypeDefKind::Variant(_) => todo!(),
+                //     TypeDefKind::Enum(_) => todo!(),
+                //     TypeDefKind::Option(_) => todo!(),
+                //     TypeDefKind::Result(_) => todo!(),
+                //     TypeDefKind::List(_) => todo!(),
+                //     TypeDefKind::Future(_) => todo!(),
+                //     TypeDefKind::Stream(_) => todo!(),
+                //     TypeDefKind::Type(_) => todo!(),
+                //     TypeDefKind::Unknown => todo!(),
+                // }
+            }
         }
     }
 
@@ -1210,6 +1349,7 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
     }
 
     fn lower(&mut self, name: &str, ty: &Type, in_export: bool) {
+        dbg!("lower proper", &name, ty);
         let lower_name = format!("lower_{name}");
         self.lower_value(name, ty, lower_name.as_ref());
     }
@@ -1227,24 +1367,306 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
             | Type::S64
             | Type::Float32
             | Type::Float64
-            | Type::Char => self.lower_src.push_str("return result;\n}\n"),
+            | Type::Char => {
+                // self.lower_src.push_str("return result;\n}\n");
+            }
             Type::String => self.lower_src.push_str(
                 "const ret = alloc(8);
               std.mem.writeIntLittle(u32, ret[0..4], @intCast(@intFromPtr(result.ptr)));
               std.mem.writeIntLittle(u32, ret[4..8], @intCast(result.len));
-              return ret;
-            }
               ",
             ),
             Type::Id(id) => {
-                let ty = &self.interface.resolve.types[*id]; // receive type
-                match &ty.kind {
-                    TypeDefKind::Record(Record { fields }) => {}
+                let iface_ty = &self.interface.resolve.types[*id];
+                match &iface_ty.kind {
+                    TypeDefKind::Record(Record { fields }) => {
+                        let mut ret_size = 0;
+                        if fields.len() == 0 {
+                            // self.lower_src.push_str("_ = result;\n}\n");
+                            self.lower_src.push_str(
+                                "
+                                _ = result;
+                                const ret = alloc(0);\n return ret;\n}",
+                            );
+                            return;
+                        }
+                        for Field { name, ty, .. } in fields {
+                            match ty {
+                                Type::Bool | Type::U8 | Type::S8 | Type::Char => {
+                                    self.lower_src.push_str(&format!(
+                                        "const result{} = result.{name};\n",
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_size += 1;
+                                }
+                                Type::U16 | Type::S16 => {
+                                    self.lower_src.push_str(&format!(
+                                        "const result{} = result.{name};\n",
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_size += 2;
+                                }
+                                Type::U32 | Type::S32 | Type::Float32 => {
+                                    self.lower_src.push_str(&format!(
+                                        "const result{} = result.{name};\n",
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_size += 4;
+                                }
+                                Type::U64 | Type::S64 | Type::Float64 => {
+                                    self.lower_src.push_str(&format!(
+                                        "const result{} = result.{name};\n",
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_size += 4;
+                                }
+                                Type::String => {
+                                    self.lower_src.push_str(&format!(
+                                        "const result{} = alloc(result.{}.len);
+                                        @memcpy(result{}[0..result.{}.len], result.{name});
+                                        ",
+                                        name.to_upper_camel_case(),
+                                        name,
+                                        name.to_upper_camel_case(),
+                                        name
+                                    ));
+                                    ret_size += 8;
+                                }
+                                Type::Id(id) => {
+                                    let cur_ty = &self.interface.resolve.types[*id];
+                                    // self.lower_value(ty.name, ty, "");
+                                    match &cur_ty.kind {
+                                        TypeDefKind::Record(Record { fields }) => {
+                                            self.lower_value(
+                                                cur_ty.name.as_ref().unwrap(),
+                                                ty,
+                                                "thango",
+                                            );
+                                            for Field {
+                                                name, ty: field_ty, ..
+                                            } in fields
+                                            {
+                                                self.lower_value(
+                                                    &format!(
+                                                        "{}{}",
+                                                        cur_ty.name.as_ref().unwrap(),
+                                                        name
+                                                    ),
+                                                    field_ty,
+                                                    "thango",
+                                                );
+                                            }
+                                            // dbg!("REFERENCED RECORD");
+                                        }
+                                        TypeDefKind::Resource => todo!(),
+                                        TypeDefKind::Handle(_) => todo!(),
+                                        TypeDefKind::Flags(_) => todo!(),
+                                        TypeDefKind::Tuple(_) => todo!(),
+                                        TypeDefKind::Variant(_) => todo!(),
+                                        TypeDefKind::Enum(_) => todo!(),
+                                        TypeDefKind::Option(_) => todo!(),
+                                        TypeDefKind::Result(_) => todo!(),
+                                        TypeDefKind::List(_) => todo!(),
+                                        TypeDefKind::Future(_) => todo!(),
+                                        TypeDefKind::Stream(_) => todo!(),
+                                        TypeDefKind::Type(_) => todo!(),
+                                        TypeDefKind::Unknown => todo!(),
+                                    }
+                                }
+                            }
+                        }
+                        self.lower_src
+                            .push_str(&format!("const ret = alloc({ret_size});\n"));
+                        let mut ret_index = 0;
+                        for Field { name, ty, .. } in fields {
+                            match ty {
+                                Type::Bool | Type::U8 | Type::S8 | Type::Char => {
+                                    self.lower_src.push_str(&format!(
+                                        "ret[{ret_index}] = result{};\n",
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_index += 1;
+                                }
+                                Type::U16 | Type::S16 => {
+                                    self.lower_src.push_str(&format!(
+                                        // ret[{ret_index}..{}] = result{};",
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], {});\n",
+                                        ret_index + 2,
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_index += 2;
+                                }
+                                Type::U32 | Type::S32 | Type::Float32 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], result{});\n",
+                                        ret_index + 4,
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_index += 4;
+                                }
+                                Type::U64 | Type::S64 | Type::Float64 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], {});\n",
+                                        ret_index + 1,
+                                        name.to_upper_camel_case()
+                                    ));
+                                    ret_index += 8;
+                                }
+                                Type::String => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], @intCast(@intFromPtr(result{})));
+                                        std.mem.writeIntLittle(u32, ret[{}..{}], @intCast(result.{}.len));
+                                        ",
+                                        ret_index + 4,
+                                        name.to_upper_camel_case(),
+                                        ret_index + 4,
+                                        ret_index + 8,
+                                        name,
+                                    ));
+                                    ret_index += 8;
+                                }
+                                Type::Id(id) => {
+                                    let ty = &self.interface.resolve.types[*id];
+                                    match &ty.kind {
+                                        TypeDefKind::Record(Record { fields }) => {
+                                            for Field { name, ty, .. } in fields {
+                                                dbg!(&name);
+                                                self.lower_src.push_str(&format!(
+                                                    "const result{} = result.{name};\n",
+                                                    name.to_upper_camel_case(),
+                                                ));
+                                            }
+                                            dbg!("REFERENCED RECORD LOWERING");
+                                        }
+                                        TypeDefKind::Resource => todo!(),
+                                        TypeDefKind::Handle(_) => todo!(),
+                                        TypeDefKind::Flags(_) => todo!(),
+                                        TypeDefKind::Tuple(_) => todo!(),
+                                        TypeDefKind::Variant(_) => todo!(),
+                                        TypeDefKind::Enum(_) => todo!(),
+                                        TypeDefKind::Option(_) => todo!(),
+                                        TypeDefKind::Result(_) => todo!(),
+                                        TypeDefKind::List(_) => todo!(),
+                                        TypeDefKind::Future(_) => todo!(),
+                                        TypeDefKind::Stream(_) => todo!(),
+                                        TypeDefKind::Type(_) => todo!(),
+                                        TypeDefKind::Unknown => todo!(),
+                                    }
+                                }
+                            }
+                        }
+                        // self.lower_src.push_str("return ret;\n}\n");
+                    }
                     TypeDefKind::Resource => todo!(),
                     TypeDefKind::Handle(_) => todo!(),
                     TypeDefKind::Flags(_) => todo!(),
-                    TypeDefKind::Tuple(_) => {
-                        dbg!("TUPLE SUPPORT");
+                    TypeDefKind::Tuple(Tuple { types }) => {
+                        let mut ret_size = 0;
+                        for (i, ty) in types.iter().enumerate() {
+                            self.lower_src
+                                .push_str(&format!("const result{i} = result[{i}];\n"));
+                            match ty {
+                                Type::Bool | Type::S8 | Type::U8 => {
+                                    ret_size += 1;
+                                }
+                                Type::U16 | Type::S16 => {
+                                    ret_size += 2;
+                                }
+                                Type::U32 | Type::Char | Type::S32 | Type::Float32 => {
+                                    ret_size += 4;
+                                }
+                                Type::U64 | Type::S64 | Type::Float64 => {
+                                    ret_size += 8;
+                                }
+                                Type::String => {
+                                    self.lower_src.push_str(&format!(
+                                        "const result{i}Bytes = alloc(result[{i}].len);
+                                        @memcpy(result{i}Bytes[0..result{i}.len], result{i});
+                                        "
+                                    ));
+                                    ret_size += 8
+                                }
+                                Type::Id(_) => todo!(),
+                            }
+                        }
+                        self.lower_src
+                            .push_str(&format!("const ret = alloc({ret_size});\n"));
+                        let mut index = 0;
+                        for (i, ty) in types.iter().enumerate() {
+                            match ty {
+                                Type::Bool | Type::U8 => {
+                                    self.lower_src
+                                        .push_str(&format!("ret[{index}] = result{i};\n"));
+                                    index += 1;
+                                }
+                                Type::S8 => {
+                                    self.lower_src
+                                        .push_str(&format!("ret[{index}] = result{i};\n"));
+                                    index += 1;
+                                }
+                                Type::U16 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u16, ret[{index}..{}], result{i});\n", index + 2
+                                    ));
+                                    index += 2;
+                                }
+                                Type::S16 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(i16, ret[{index}..{}], result{i});\n", index + 2
+                                    ));
+                                    index += 2;
+                                }
+                                Type::U32 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u32, ret[{index}..{}], result{i});\n", index + 4
+                                    ));
+                                    index += 4;
+                                }
+                                Type::Char | Type::S32 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(i32, ret[{index}..{}], result{i});\n", index + 4
+                                    ));
+                                    index += 4;
+                                }
+                                Type::U64 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u64, ret[{index}..{}], result{i});\n", index + 8
+                                    ));
+                                    index += 8;
+                                }
+                                Type::S64 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(i64, ret[{index}..{}], result{i});\n", index + 8
+                                    ));
+                                    index += 8;
+                                }
+                                Type::Float32 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(f32, ret[{index}..{}], result{i});\n", index + 4
+                                    ));
+                                    index += 4;
+                                }
+                                Type::Float64 => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(f64, ret[{index}..{}], result{i});\n", index + 8
+                                    ));
+                                    index += 8;
+                                }
+                                Type::String => {
+                                    self.lower_src.push_str(&format!(
+                                        "std.mem.writeIntLittle(u32, ret[{index}..{}], @intFromPtr(result{i}Bytes));
+                                        std.mem.writeIntLittle(u32, ret[{}..{}], result{i}.len);
+                                        ",
+                                        index + 4,
+                                        index + 4,
+                                        index + 8,
+                                    ));
+                                    index += 8;
+                                }
+                                Type::Id(_) => todo!(),
+                            }
+                        }
+                        self.lower_src.push_str("return ret;\n}\n");
                     }
                     TypeDefKind::Variant(_) => todo!(),
                     TypeDefKind::Enum(_) => todo!(),
@@ -1259,15 +1681,16 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                     TypeDefKind::Type(_) => todo!(),
                     TypeDefKind::Unknown => todo!(),
                 }
-                dbg!(&param);
             }
         }
+        // self.lower_src.push_str("return ret;\n}\n");
     }
     fn lift(&mut self, name: &str, ty: &Type) {
         self.lift_value(name, ty);
     }
 
     fn lift_value(&mut self, param: &str, ty: &Type) {
+        dbg!(&param);
         match ty {
             Type::Bool => {
                 self.args.push((param.to_string(), "bool".to_string()));
@@ -1312,17 +1735,94 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
             }
             Type::Id(id) => {
                 let ty = &self.interface.resolve.types[*id]; // receive type
+                dbg!(&ty.name);
                 match &ty.kind {
                     TypeDefKind::Record(Record { fields }) => {
-                        for field in fields {
-                            self.lift_src.push_str(&format!(
-                                "const {} = {}Ptr[0..{}Length];\n",
-                                field.name, field.name, field.name
-                            ));
-                            self.args
-                                .push((format!("{}Ptr", field.name), "[*]u8".to_string()));
-                            self.args
-                                .push((format!("{}Length", field.name), "u32".to_string()));
+                        for Field {
+                            name, ty: field_ty, ..
+                        } in fields
+                        {
+                            match field_ty {
+                                Type::Bool => {
+                                    self.args.push((
+                                        format!("{param}{}", name.to_upper_camel_case()),
+                                        "bool".to_string(),
+                                    ));
+                                }
+                                Type::U8 => {
+                                    self.args.push((
+                                        format!("{param}{}", name.to_upper_camel_case()),
+                                        "u8".to_string(),
+                                    ));
+                                }
+                                Type::U16 => {
+                                    self.args.push((
+                                        format!("{param}{}", name.to_upper_camel_case()),
+                                        "u16".to_string(),
+                                    ));
+                                }
+                                Type::U32 => {
+                                    dbg!(&param);
+                                    self.args.push((
+                                        format!(
+                                            "{}{}",
+                                            // &ty.name.as_ref().unwrap(),
+                                            param,
+                                            name.to_upper_camel_case()
+                                        ),
+                                        "u32".to_string(),
+                                    ));
+                                }
+                                Type::U64 => {
+                                    self.args.push((
+                                        format!("{param}{}", name.to_upper_camel_case()),
+                                        "u64".to_string(),
+                                    ));
+                                }
+                                Type::S8 => {
+                                    self.args.push((name.to_string(), "i8".to_string()));
+                                }
+                                Type::S16 => {
+                                    self.args.push((name.to_string(), "i16".to_string()));
+                                }
+                                Type::S32 => {
+                                    self.args.push((name.to_string(), "i32".to_string()));
+                                }
+                                Type::S64 => {
+                                    self.args.push((name.to_string(), "i64".to_string()));
+                                }
+                                Type::Float32 => {
+                                    self.args.push((name.to_string(), "f32".to_string()));
+                                }
+                                Type::Float64 => {
+                                    self.args.push((name.to_string(), "f64".to_string()));
+                                }
+                                Type::Char => {
+                                    self.args.push((name.to_string(), "u8".to_string()));
+                                }
+                                Type::String => {
+                                    self.lift_src.push_str(&format!(
+                                        "const {param}{} = {param}{}Ptr[0..{param}{}Length];\n",
+                                        name.to_upper_camel_case(),
+                                        name.to_upper_camel_case(),
+                                        name.to_upper_camel_case()
+                                    ));
+                                    self.args.push((
+                                        format!("{param}{}Ptr", name.to_upper_camel_case()),
+                                        "[*]u8".to_string(),
+                                    ));
+                                    self.args.push((
+                                        format!("{param}{}Length", name.to_upper_camel_case()),
+                                        "u32".to_string(),
+                                    ));
+                                }
+                                Type::Id(id) => {
+                                    self.lift_value(
+                                        &format!("{param}{}", name.to_upper_camel_case()),
+                                        &Type::Id(*id),
+                                    );
+                                }
+                            }
                         }
                         self.lift_src.push_str(&format!(
                             "const {param} = {}.{} {{\n",
@@ -1332,15 +1832,27 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                             ty.name.clone().unwrap().to_upper_camel_case()
                         ));
                         for field in fields {
-                            self.lift_src
-                                .push_str(&format!(".{} = {},\n", field.name, field.name));
+                            self.lift_src.push_str(&format!(
+                                ".{} = {param}{},\n",
+                                field.name,
+                                field.name.to_upper_camel_case()
+                            ));
                         }
                         self.lift_src.push_str("};\n");
                     }
                     TypeDefKind::Resource => todo!(),
                     TypeDefKind::Handle(_) => todo!(),
                     TypeDefKind::Flags(_) => todo!(),
-                    TypeDefKind::Tuple(_) => todo!(),
+                    TypeDefKind::Tuple(Tuple { types }) => {
+                        let mut entries = String::new();
+                        entries.push_str(&format!("const {param} = std.meta.Tuple(&.{{"));
+                        for (i, tuple_ty) in types.iter().enumerate() {
+                            self.lift_value(&format!("{param}{i}"), tuple_ty);
+                            entries.push_str(&format!("{param}{i}, "));
+                        }
+                        self.lift_src.push_str(&entries);
+                        self.lift_src.push_str("});\n");
+                    }
                     TypeDefKind::Variant(_) => todo!(),
                     TypeDefKind::Enum(_) => todo!(),
                     TypeDefKind::Option(_) => todo!(),
@@ -1348,7 +1860,9 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                     TypeDefKind::List(_) => todo!(),
                     TypeDefKind::Future(_) => todo!(),
                     TypeDefKind::Stream(_) => todo!(),
-                    TypeDefKind::Type(_) => todo!(),
+                    TypeDefKind::Type(id) => {
+                        dbg!("REFERDNED REFERENCE TYPE");
+                    }
                     TypeDefKind::Unknown => todo!(),
                 }
             }
