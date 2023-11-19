@@ -395,9 +395,7 @@ impl WorldGenerator for ZigWasm {
             iface.name.as_ref().unwrap().to_upper_camel_case(),
         ));
         for (ty_name, ty_id) in &iface.types {
-            // let thing = ty_id.idx;
             let ty = &resolve.types[*ty_id];
-            let ty_id = ty_id.index();
             match &ty.kind {
                 TypeDefKind::Record(Record { fields }) => {
                     self.src.push_str(&format!(
@@ -862,11 +860,7 @@ impl InterfaceGenerator<'_> {
                     _ => {
                         if let Some(name) = &ty.name {
                             if let TypeOwner::Interface(owner) = ty.owner {
-                                dbg!(&name);
-                                dbg!(&self.gen.interface_names);
-                                dbg!(&owner);
                                 let key = &self.gen.interface_names[&owner];
-                                dbg!(&key);
                                 let iface = self.get_ty_name_with(key);
                                 format!("{iface}{name}", name = name.to_upper_camel_case())
                             } else {
@@ -1086,56 +1080,6 @@ impl InterfaceGenerator<'_> {
             None => self.gen.world.to_upper_camel_case(),
         }
     }
-    fn print_func_signature(&mut self, resolve: &Resolve, func: &Function) {
-        self.src.push_str("export fn ");
-        let func_prefix = self.get_package_name();
-        let params = self.get_func_params(resolve, func);
-        let results = self.get_func_results(resolve, func);
-        self.src
-            .push_str(&format!("{func_prefix}{}({params}){results}", func.name));
-
-        self.src.push_str("{\n");
-    }
-
-    // fn import(&mut self, resolve: &Resolve, func: &Function) {
-    //     let mut func_bindgen = FunctionBindgen::new(self, func);
-    //     // lower params to c
-    //     func.params.iter().for_each(|(name, ty)| {
-    //         // dbg!
-    //         func_bindgen.lift(&avoid_keyword(&name.to_snake_case()), ty);
-    //     });
-    //     // lift results from c
-    //     match func.results.len() {
-    //         0 => {}
-    //         1 => {
-    //             // let ty = func.results.iter_types().next().unwrap();
-    //             // func_bindgen.lift("ret", ty);
-    //         }
-    //         _ => {
-    //             for (i, ty) in func.results.iter_types().enumerate() {
-    //                 func_bindgen.lift(&format!("ret{i}"), ty);
-    //             }
-    //         }
-    //     };
-    //     // let args = func_bindgen.args;
-    //     let ret = func_bindgen.args;
-    //     let lower_src = func_bindgen.lower_src.to_string();
-    //     let lift_src = func_bindgen.lift_src.to_string();
-
-    //     // // print function signature
-    //     self.print_func_signature(resolve, func);
-
-    //     // body
-    //     // prepare args
-    //     self.src.push_str(lift_src.as_str());
-    //     // self.src.push_str(lower_src.as_str());
-
-    //     // self.import_invoke(resolve, func, c_args, &lift_src, ret);
-
-    //     // return
-
-    //     self.src.push_str("}\n\n");
-    // }
 
     fn export(&mut self, resolve: &Resolve, func: &Function, func_prefix: Option<String>) {
         let mut func_bindgen = FunctionBindgen::new(self, func);
@@ -1349,8 +1293,7 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
     }
 
     fn lower(&mut self, name: &str, ty: &Type, in_export: bool) {
-        dbg!("lower proper", &name, ty);
-        let lower_name = format!("lower_{name}");
+        let lower_name = "";
         self.lower_value(name, ty, lower_name.as_ref());
     }
 
@@ -1381,8 +1324,9 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                 match &iface_ty.kind {
                     TypeDefKind::Record(Record { fields }) => {
                         let mut ret_size = 0;
+                        // SOMETHING LIKE THIS, WEIRD CAUSE EMPTY RECS ARENT A THING
                         if fields.len() == 0 {
-                            // self.lower_src.push_str("_ = result;\n}\n");
+                            self.lower_src.push_str("_ = result;\n}\n");
                             self.lower_src.push_str(
                                 "
                                 _ = result;
@@ -1392,34 +1336,10 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                         }
                         for Field { name, ty, .. } in fields {
                             match ty {
-                                Type::Bool | Type::U8 | Type::S8 | Type::Char => {
-                                    self.lower_src.push_str(&format!(
-                                        "const result{} = result.{name};\n",
-                                        name.to_upper_camel_case()
-                                    ));
-                                    ret_size += 1;
-                                }
-                                Type::U16 | Type::S16 => {
-                                    self.lower_src.push_str(&format!(
-                                        "const result{} = result.{name};\n",
-                                        name.to_upper_camel_case()
-                                    ));
-                                    ret_size += 2;
-                                }
-                                Type::U32 | Type::S32 | Type::Float32 => {
-                                    self.lower_src.push_str(&format!(
-                                        "const result{} = result.{name};\n",
-                                        name.to_upper_camel_case()
-                                    ));
-                                    ret_size += 4;
-                                }
-                                Type::U64 | Type::S64 | Type::Float64 => {
-                                    self.lower_src.push_str(&format!(
-                                        "const result{} = result.{name};\n",
-                                        name.to_upper_camel_case()
-                                    ));
-                                    ret_size += 4;
-                                }
+                                Type::Bool | Type::U8 | Type::S8 | Type::Char => ret_size += 1,
+                                Type::U16 | Type::S16 => ret_size += 2,
+                                Type::U32 | Type::S32 | Type::Float32 => ret_size += 4,
+                                Type::U64 | Type::S64 | Type::Float64 => ret_size += 4,
                                 Type::String => {
                                     self.lower_src.push_str(&format!(
                                         "const result{} = alloc(result.{}.len);
@@ -1434,29 +1354,28 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                                 }
                                 Type::Id(id) => {
                                     let cur_ty = &self.interface.resolve.types[*id];
-                                    // self.lower_value(ty.name, ty, "");
                                     match &cur_ty.kind {
                                         TypeDefKind::Record(Record { fields }) => {
-                                            self.lower_value(
-                                                cur_ty.name.as_ref().unwrap(),
-                                                ty,
-                                                "thango",
-                                            );
                                             for Field {
                                                 name, ty: field_ty, ..
                                             } in fields
                                             {
-                                                self.lower_value(
-                                                    &format!(
-                                                        "{}{}",
-                                                        cur_ty.name.as_ref().unwrap(),
-                                                        name
-                                                    ),
-                                                    field_ty,
-                                                    "thango",
-                                                );
+                                                match field_ty {
+                                                    Type::Bool
+                                                    | Type::U8
+                                                    | Type::S8
+                                                    | Type::Char => ret_size += 1,
+                                                    Type::U16 | Type::S16 => ret_size += 2,
+                                                    Type::U32 | Type::S32 | Type::Float32 => {
+                                                        ret_size += 4
+                                                    }
+                                                    Type::U64 | Type::S64 | Type::Float64 => {
+                                                        ret_size += 8
+                                                    }
+                                                    Type::String => ret_size += 8,
+                                                    Type::Id(_) => todo!(),
+                                                }
                                             }
-                                            // dbg!("REFERENCED RECORD");
                                         }
                                         TypeDefKind::Resource => todo!(),
                                         TypeDefKind::Handle(_) => todo!(),
@@ -1481,34 +1400,32 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                         for Field { name, ty, .. } in fields {
                             match ty {
                                 Type::Bool | Type::U8 | Type::S8 | Type::Char => {
-                                    self.lower_src.push_str(&format!(
-                                        "ret[{ret_index}] = result{};\n",
-                                        name.to_upper_camel_case()
-                                    ));
+                                    self.lower_src
+                                        .push_str(&format!("ret[{ret_index}] = result{};\n", name));
                                     ret_index += 1;
                                 }
                                 Type::U16 | Type::S16 => {
                                     self.lower_src.push_str(&format!(
                                         // ret[{ret_index}..{}] = result{};",
-                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], {});\n",
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], result.{});\n",
                                         ret_index + 2,
-                                        name.to_upper_camel_case()
+                                        name
                                     ));
                                     ret_index += 2;
                                 }
                                 Type::U32 | Type::S32 | Type::Float32 => {
                                     self.lower_src.push_str(&format!(
-                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], result{});\n",
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], result.{});\n",
                                         ret_index + 4,
-                                        name.to_upper_camel_case()
+                                        name
                                     ));
                                     ret_index += 4;
                                 }
                                 Type::U64 | Type::S64 | Type::Float64 => {
                                     self.lower_src.push_str(&format!(
-                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], {});\n",
-                                        ret_index + 1,
-                                        name.to_upper_camel_case()
+                                        "std.mem.writeIntLittle(u32, ret[{ret_index}..{}], result.{});\n",
+                                        ret_index + 8,
+                                        name
                                     ));
                                     ret_index += 8;
                                 }
@@ -1526,17 +1443,56 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                                     ret_index += 8;
                                 }
                                 Type::Id(id) => {
-                                    let ty = &self.interface.resolve.types[*id];
-                                    match &ty.kind {
+                                    let cur_ty = &self.interface.resolve.types[*id];
+                                    match &cur_ty.kind {
                                         TypeDefKind::Record(Record { fields }) => {
-                                            for Field { name, ty, .. } in fields {
-                                                dbg!(&name);
-                                                self.lower_src.push_str(&format!(
-                                                    "const result{} = result.{name};\n",
-                                                    name.to_upper_camel_case(),
-                                                ));
+                                            for Field {
+                                                name: cur_name,
+                                                ty: field_ty,
+                                                ..
+                                            } in fields
+                                            {
+                                                match field_ty {
+                                                    Type::Bool => todo!(),
+                                                    Type::U8 => todo!(),
+                                                    Type::U16 => todo!(),
+                                                    Type::U32 => {
+                                                        self.lower_src.push_str(&format!("std.mem.writeIntLittle(u32, ret[{ret_index}..{}], result.{}.{cur_name});\n", ret_index + 4, name));
+                                                        ret_index += 4;
+                                                    }
+                                                    Type::U64 => todo!(),
+                                                    Type::S8 => todo!(),
+                                                    Type::S16 => todo!(),
+                                                    Type::S32 => todo!(),
+                                                    Type::S64 => todo!(),
+                                                    Type::Float32 => todo!(),
+                                                    Type::Float64 => todo!(),
+                                                    Type::Char => todo!(),
+                                                    Type::String => todo!(),
+                                                    Type::Id(id) => {
+                                                        let cur_ty =
+                                                            &self.interface.resolve.types[*id];
+                                                        match &cur_ty.kind {
+                                                            TypeDefKind::Record(Record {
+                                                                fields,
+                                                            }) => for field in fields {},
+                                                            TypeDefKind::Resource => todo!(),
+                                                            TypeDefKind::Handle(_) => todo!(),
+                                                            TypeDefKind::Flags(_) => todo!(),
+                                                            TypeDefKind::Tuple(_) => todo!(),
+                                                            TypeDefKind::Variant(_) => todo!(),
+                                                            TypeDefKind::Enum(_) => todo!(),
+                                                            TypeDefKind::Option(_) => todo!(),
+                                                            TypeDefKind::Result(_) => todo!(),
+                                                            TypeDefKind::List(_) => todo!(),
+                                                            TypeDefKind::Future(_) => todo!(),
+                                                            TypeDefKind::Stream(_) => todo!(),
+                                                            TypeDefKind::Type(_) => todo!(),
+                                                            TypeDefKind::Unknown => todo!(),
+                                                        }
+                                                    }
+                                                }
                                             }
-                                            dbg!("REFERENCED RECORD LOWERING");
                                         }
                                         TypeDefKind::Resource => todo!(),
                                         TypeDefKind::Handle(_) => todo!(),
@@ -1581,7 +1537,7 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                                 Type::String => {
                                     self.lower_src.push_str(&format!(
                                         "const result{i}Bytes = alloc(result[{i}].len);
-                                        @memcpy(result{i}Bytes[0..result{i}.len], result{i});
+                                        @memcpy(result{i}Bytes[0..result{i}.len], {i}{lower_name});
                                         "
                                     ));
                                     ret_size += 8
@@ -1618,7 +1574,7 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                                 }
                                 Type::U32 => {
                                     self.lower_src.push_str(&format!(
-                                        "std.mem.writeIntLittle(u32, ret[{index}..{}], result{i});\n", index + 4
+                                        "std.mem.writeIntLittle(u32, ret[{index}..{}], {i}{lower_name});\n", index + 4
                                     ));
                                     index += 4;
                                 }
@@ -1690,7 +1646,6 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
     }
 
     fn lift_value(&mut self, param: &str, ty: &Type) {
-        dbg!(&param);
         match ty {
             Type::Bool => {
                 self.args.push((param.to_string(), "bool".to_string()));
@@ -1735,7 +1690,6 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
             }
             Type::Id(id) => {
                 let ty = &self.interface.resolve.types[*id]; // receive type
-                dbg!(&ty.name);
                 match &ty.kind {
                     TypeDefKind::Record(Record { fields }) => {
                         for Field {
@@ -1762,14 +1716,8 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                                     ));
                                 }
                                 Type::U32 => {
-                                    dbg!(&param);
                                     self.args.push((
-                                        format!(
-                                            "{}{}",
-                                            // &ty.name.as_ref().unwrap(),
-                                            param,
-                                            name.to_upper_camel_case()
-                                        ),
+                                        format!("{}{}", param, name.to_upper_camel_case()),
                                         "u32".to_string(),
                                     ));
                                 }
@@ -1860,9 +1808,7 @@ impl<'a, 'b> FunctionBindgen<'a, 'b> {
                     TypeDefKind::List(_) => todo!(),
                     TypeDefKind::Future(_) => todo!(),
                     TypeDefKind::Stream(_) => todo!(),
-                    TypeDefKind::Type(id) => {
-                        dbg!("REFERDNED REFERENCE TYPE");
-                    }
+                    TypeDefKind::Type(id) => {}
                     TypeDefKind::Unknown => todo!(),
                 }
             }
