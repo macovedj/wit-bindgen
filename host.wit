@@ -1,0 +1,31 @@
+// wit/host.wit
+package example:foo
+/*
+interface fun {
+  concat-string: func(left: string, right: string) -> string
+}
+*/
+interface fun {
+  /// A function that accepts a character
+ // take-char: func(x: char);
+  /// A function that returns a character
+  //return-char: func(input: char) -> char;
+
+  record rec {
+    first: string,
+    second: string
+  }
+
+  concat-record: func(input: rec) -> string;
+}
+
+world foo {
+  export concat: func(left: string, right: string) -> string
+  //export add: func(left: u8, right: u8) -> u8
+  /*
+  import fun;
+  export fun;
+  */
+  import fun;
+  export fun;
+}

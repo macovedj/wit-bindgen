@@ -1247,6 +1247,7 @@ impl InterfaceGenerator<'_> {
         let lower_src = func_bindgen.lower_src.to_string();
 
         let interface_method_decl = self.get_func_signature_no_interface(resolve, func);
+        dbg!(&interface_method_decl);
         let export_func = {
             let mut src = String::new();
             // header
