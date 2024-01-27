@@ -207,7 +207,7 @@ impl InterfaceGenerator<'_> {
 
     pub fn start_append_submodule(&mut self, name: &WorldKey) -> (String, Vec<String>) {
         let snake = match name {
-            WorldKey::Name(name) => to_rust_ident(name),
+            WorldKey::Name(name) => to_rust_ident(&name.replace(":", "_")),
             WorldKey::Interface(id) => {
                 to_rust_ident(self.resolve.interfaces[*id].name.as_ref().unwrap())
             }
