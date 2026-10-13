@@ -198,11 +198,30 @@ pub unsafe fn cabi_realloc(
 /// wit-bindgen-rust generates a call to this function at the start of all
 /// component export functions. Importantly, it is not called as part of
 /// `cabi_realloc`, which is a *core* export func, but should not execute ctors.
+/// Constructors already invoked by `_initialize` or `_start` do not need to be
+/// run again when an export is called.
 #[cfg(target_arch = "wasm32")]
 pub fn run_ctors_once() {
     static mut RUN: bool = false;
+
+    extern "C" fn mark_run() {
+        unsafe { RUN = true }
+    }
+
+    // Record startup regardless of who calls `__wasm_call_ctors`. Use the
+    // lowest priority so that ordinary constructors can reenter this hook.
+    #[used]
+    #[unsafe(link_section = ".init_array.0")]
+    static MARK_RUN: extern "C" fn() = mark_run;
+
+    // Keep the marker's object in the link even when it is in an archive.
+    core::hint::black_box(&raw const MARK_RUN);
     unsafe {
-        if !RUN {
+        // Startup calls are synthesized by the linker, outside LLVM's view.
+        if !core::ptr::read_volatile(&raw const RUN) {
+            // Older toolchains rely on this hook to start the constructors.
+            // Set the guard first in case a constructor reenters an export.
+            RUN = true;
             // This function is synthesized by `wasm-ld` to run all static
             // constructors. wasm-ld will either provide an implementation
             // of this symbol, or synthesize a wrapper around each
@@ -213,7 +232,6 @@ pub fn run_ctors_once() {
                 fn __wasm_call_ctors();
             }
             __wasm_call_ctors();
-            RUN = true;
         }
     }
 }
