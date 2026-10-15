@@ -829,10 +829,6 @@ extern crate std;
 ///     // support the standard library itself depending on this crate one day.
 ///     std_feature,
 ///
-///     // Disable a workaround to force wasm constructors to be run only once
-///     // when exported functions are called.
-///     disable_run_ctors_once_workaround: false,
-///
 ///     // Whether to generate unused `record`, `enum`, `variant` types.
 ///     // By default, they will not be generated unless they are used as input
 ///     // or return value of a function.

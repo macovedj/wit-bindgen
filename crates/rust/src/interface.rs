@@ -1212,22 +1212,6 @@ unsafe fn call_import(&mut self, _params: Self::ParamsLower, _results: *mut u8) 
         let params = self.print_export_sig(func, async_);
         self.push_str(" { unsafe {");
 
-        if !self.r#gen.opts.disable_run_ctors_once_workaround {
-            let run_ctors_once = self.path_to_run_ctors_once();
-            // Before executing any other code, use this function to run all
-            // static constructors, if they have not yet been run. This is a
-            // hack required to work around wasi-libc ctors calling import
-            // functions to initialize the environment.
-            //
-            // See
-            // https://github.com/bytecodealliance/preview2-prototyping/issues/99
-            // for more details.
-            uwrite!(
-                self.src,
-                "#[cfg(target_arch=\"wasm32\")]\n{run_ctors_once}();",
-            );
-        }
-
         let mut f = FunctionBindgen::new(self, params, self.wasm_import_module, false, None);
         let variant = if async_ {
             AbiVariant::GuestExportAsync
@@ -2761,10 +2745,6 @@ unsafe fn call_import(&mut self, _params: Self::ParamsLower, _results: *mut u8) 
 
     pub fn path_to_bool_lift(&mut self) -> String {
         self.path_from_runtime_module(RuntimeItem::BoolLift, "bool_lift")
-    }
-
-    fn path_to_run_ctors_once(&mut self) -> String {
-        self.path_from_runtime_module(RuntimeItem::RunCtorsOnce, "run_ctors_once")
     }
 
     pub fn path_to_vec(&mut self) -> String {

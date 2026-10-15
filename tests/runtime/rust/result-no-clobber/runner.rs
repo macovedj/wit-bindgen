@@ -1,5 +1,3 @@
-//@ args = ['--disable-run-ctors-once-workaround']
-
 include!(env!("BINDINGS"));
 
 struct Component;

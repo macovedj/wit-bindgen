@@ -109,7 +109,6 @@ enum RuntimeItem {
     CharLift,
     BoolLift,
     CabiDealloc,
-    RunCtorsOnce,
     AsI32,
     AsI64,
     AsF32,
@@ -295,11 +294,6 @@ pub struct Opts {
     /// the component type.
     #[cfg_attr(feature = "clap", arg(long, value_name = "STRING"))]
     pub type_section_suffix: Option<String>,
-
-    /// Disable a workaround used to prevent libc ctors/dtors from being invoked
-    /// too much.
-    #[cfg_attr(feature = "clap", arg(long))]
-    pub disable_run_ctors_once_workaround: bool,
 
     /// Changes the default module used in the generated `export!` macro to
     /// something other than `self`.
@@ -720,18 +714,6 @@ pub unsafe fn bool_lift(val: u8) -> bool {
 }
                     ",
                 );
-            }
-
-            RuntimeItem::RunCtorsOnce => {
-                let rt = self.runtime_path();
-                self.src.push_str(&format!(
-                    r#"
-#[cfg(target_arch = "wasm32")]
-pub fn run_ctors_once() {{
-    {rt}::run_ctors_once();
-}}
-                    "#,
-                ));
             }
 
             RuntimeItem::AsI32 => {
@@ -1199,12 +1181,6 @@ impl WorldGenerator for RustWasm {
             uwriteln!(
                 self.src_preamble,
                 "//   * default-bindings-module: {default:?}"
-            );
-        }
-        if self.opts.disable_run_ctors_once_workaround {
-            uwriteln!(
-                self.src_preamble,
-                "//   * disable-run-ctors-once-workaround"
             );
         }
         if self.opts.merge_structurally_equal_types() {

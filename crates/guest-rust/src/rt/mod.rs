@@ -192,44 +192,6 @@ pub unsafe fn cabi_realloc(
     return ptr;
 }
 
-/// Provide a hook for generated export functions to run static constructors at
-/// most once.
-///
-/// wit-bindgen-rust generates a call to this function at the start of all
-/// component export functions. Importantly, it is not called as part of
-/// `cabi_realloc`, which is a *core* export func, but should not execute ctors.
-/// Constructors already invoked by `_initialize` or `_start` do not need to be
-/// run again when an export is called.
-#[cfg(target_arch = "wasm32")]
-pub fn run_ctors_once() {
-    static mut RUN: bool = false;
-
-    extern "C" fn mark_run() {
-        unsafe { RUN = true }
-    }
-
-    // Record startup regardless of who calls `__wasm_call_ctors`.
-    #[used]
-    #[unsafe(link_section = ".init_array")]
-    static MARK_RUN: extern "C" fn() = mark_run;
-
-    unsafe {
-        if !RUN {
-            // This function is synthesized by `wasm-ld` to run all static
-            // constructors. wasm-ld will either provide an implementation
-            // of this symbol, or synthesize a wrapper around each
-            // exported function to (unconditionally) run ctors. By using
-            // this function, the linked module is opting into "manually"
-            // running ctors.
-            unsafe extern "C" {
-                fn __wasm_call_ctors();
-            }
-            __wasm_call_ctors();
-            RUN = true;
-        }
-    }
-}
-
 /// Support for using the Component Model Async ABI
 #[cfg(feature = "async")]
 pub mod async_support;
