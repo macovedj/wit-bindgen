@@ -1,0 +1,17 @@
+//@ dependencies = ["provider", "test"]
+//@ wac = "./compose.wac"
+
+package probe:startup;
+
+interface state {
+  notify: func();
+  count: func() -> u32;
+}
+
+interface i {
+  ctor-runs: func() -> u32;
+}
+
+world provider { export state; }
+world test { import state; export i; }
+world runner { import state; import i; export run: func(); }

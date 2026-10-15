@@ -1,0 +1,6 @@
+package example:composition;
+
+let state = new test:provider { ... };
+let test = new test:test { ...state, ... };
+let runner = new test:runner { ...state, ...test, ... };
+export runner...;
